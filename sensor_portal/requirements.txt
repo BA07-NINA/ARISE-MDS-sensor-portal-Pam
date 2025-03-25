@@ -51,4 +51,7 @@ Pillow==9.1.1
 # archiving
 bagit==1.8.1
 
+# mutagen 
+mutagen==1.47.0
+
 
