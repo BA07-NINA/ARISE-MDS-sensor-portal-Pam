@@ -39,7 +39,7 @@ export default function DevicesPage() {
       startDate: device.start_date,
       endDate: device.end_date,
       intId: device.id,
-      folderSize: device.folder_size, 
+      folderSize: device.folder_size,
     }));
   };
 
@@ -66,9 +66,10 @@ export default function DevicesPage() {
       ),
       cell: ({ row }) => (
         <Link
+          data-testid="deviceDetails"
           to="/devices/$deviceId"
           params={{ deviceId: row.original.id }}
-           className="text-blue-500 hover:underline"
+          className="text-blue-500 hover:underline"
         >
           {row.original.id}
         </Link>

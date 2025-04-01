@@ -32,6 +32,7 @@ function Sidebar() {
           </Link>
           
           <Link 
+            data-testid="devicesPage"
             to="/devices" 
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-gray-700 hover:bg-gray-100 ${isDevicesActive ? 'font-bold bg-gray-100' : ''} ${isCollapsed ? 'justify-center' : ''}`}
           >
