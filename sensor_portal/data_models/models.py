@@ -70,9 +70,17 @@ class Project(BaseModel):
 
     def is_active(self):
         if self.id:
-            return self.deployments.filter(is_active=True).exists()
-        else:
-            return False
+            now = djtimezone.now()
+            return self.deployments.filter(
+                is_active=True,
+                deployment_start__lte=now,
+                deployment_end__isnull=True
+            ).exists() or self.deployments.filter(
+                is_active=True,
+                deployment_start__lte=now,
+                deployment_end__gte=now
+            ).exists()
+        return False
 
     # User ownership
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, related_name="owned_projects",
@@ -180,9 +188,17 @@ class Device(BaseModel):
 
     def is_active(self):
         if self.id:
-            return self.deployments.filter(is_active=True).exists()
-        else:
-            return False
+            now = djtimezone.now()
+            return self.deployments.filter(
+                is_active=True,
+                deployment_start__lte=now,
+                deployment_end__isnull=True
+            ).exists() or self.deployments.filter(
+                is_active=True,
+                deployment_start__lte=now,
+                deployment_end__gte=now
+            ).exists()
+        return False
 
     def __str__(self):
         return self.device_ID
@@ -193,16 +209,17 @@ class Device(BaseModel):
     def get_folder_size(self, unit="MB"):
         """
         Calculate the total size of all DataFile objects associated with this device.
-        Filstørrelse antas å være lagret i MB som standard.
-        Du kan spesifisere en annen enhet ved å sende 'KB' eller 'GB'.
+        File size is stored in bytes and converted to the requested unit.
         """
         agg = DataFile.objects.filter(deployment__device=self).aggregate(total_size=Sum('file_size'))
         total_size = agg['total_size'] or 0
 
         if unit.upper() == "KB":
-            return total_size * 1024
-        elif unit.upper() == "GB":
             return total_size / 1024
+        elif unit.upper() == "MB":
+            return total_size / (1024 * 1024)
+        elif unit.upper() == "GB":
+            return total_size / (1024 * 1024 * 1024)
         return total_size
 
     def get_last_upload(self):
@@ -423,7 +440,9 @@ class Deployment(BaseModel):
     def save(self, *args, **kwargs):
         self.deployment_device_ID = f"{self.deployment_ID}_{self.device.type.name}_{self.device_n}"
 
-        self.is_active = self.check_active()
+        # Only update is_active if it hasn't been explicitly set
+        if not hasattr(self, '_is_active_set'):
+            self.is_active = self.check_active()
 
         if self.device_type is None:
             self.device_type = self.device.type
@@ -454,13 +473,20 @@ class Deployment(BaseModel):
             return ""
 
     def check_active(self):
+        """
+        Check if the deployment is currently active based on its start and end dates.
+        A deployment is active if:
+        1. The start date is in the past
+        2. Either there is no end date, or the end date is in the future
+        """
         self.deployment_start = check_dt(self.deployment_start)
         if self.deployment_end:
             self.deployment_end = check_dt(self.deployment_end)
-        if self.deployment_start <= djtimezone.now():
-            if self.deployment_end is None or self.deployment_end >= djtimezone.now():
+        
+        now = djtimezone.now()
+        if self.deployment_start <= now:
+            if self.deployment_end is None or self.deployment_end >= now:
                 return True
-
         return False
 
     def check_dates(self, dt_list):
@@ -569,11 +595,19 @@ class DataFileQuerySet(models.QuerySet):
                      for x in file_name_components]
         return all_names
 
-    def file_size(self, unit=""):
-        total_file_size = self.aggregate(total_file_size=Sum("file_size"))[
-            "total_file_size"]
-        converted_file_size = convert_unit(total_file_size, unit)
-        return converted_file_size
+    def file_size(self, unit="MB"):
+        total_file_size = self.aggregate(total_file_size=Sum("file_size"))["total_file_size"]
+        if total_file_size is None:
+            return 0
+        
+        # Convert bytes to the requested unit
+        if unit.upper() == "KB":
+            return total_file_size / 1024
+        elif unit.upper() == "MB":
+            return total_file_size / (1024 * 1024)
+        elif unit.upper() == "GB":
+            return total_file_size / (1024 * 1024 * 1024)
+        return total_file_size
 
     def min_date(self):
         return self.aggregate(min_date=Min("recording_dt"))["min_date"]
@@ -682,14 +716,18 @@ class DataFile(BaseModel):
         try:
             if os.path.exists(self.full_path()):
                 os.remove(self.full_path())
-            if self.linked_files is not None:  # Add this check to handle None
+            if self.linked_files is not None:
                 for file_type, file_dict in self.linked_files.values():
                     if os.path.exists(file_dict["fullpath"]):
                         os.remove(file_dict["fullpath"])
             if delete_obj:
-                self.delete()
+                # Set a flag to prevent recursion
+                self._is_cleaning = True
+                super().delete()
+                self._is_cleaning = False
         except Exception as e:
-            print(e)
+            print(f"Error cleaning file: {e}")
+            raise
 
     def save(self, *args, **kwargs):
         if self.file_type is None:
@@ -713,8 +751,8 @@ def post_save_file(sender, instance, created, **kwargs):
 
 @receiver(pre_delete, sender=DataFile)
 def pre_remove_file(sender, instance, **kwargs):
-    # deletes the attached file form data storage
-    instance.clean_file(True)
+    if not hasattr(instance, '_is_cleaning'):
+        instance.clean_file(delete_obj=True)
 
 
 @receiver(post_delete, sender=DataFile)

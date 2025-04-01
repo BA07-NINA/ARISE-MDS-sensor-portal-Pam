@@ -69,18 +69,13 @@ class DeploymentFactory(factory.django.DjangoModelFactory):
     device_n = factory.Faker('random_int', min=0, max=100)
 
     deployment_start = factory.Faker('date_time_between_dates',
-                                     datetime_start=datetime(
-                                         2020, 1, 1, 0, 0, 0),
+                                     datetime_start=datetime(2023, 1, 1),
+                                     datetime_end=datetime(2023, 6, 1),
                                      tzinfo=djtimezone.utc)
 
     deployment_end = factory.Maybe(
         factory.Faker('pybool'),
-
-        factory.Faker('date_time_between_dates',
-                      datetime_start=factory.SelfAttribute(
-                          "..deployment_start"),
-                      tzinfo=djtimezone.utc
-                      )
+        factory.LazyAttribute(lambda o: o.deployment_start + timedelta(days=180))
     )
 
     device = factory.SubFactory(DeviceFactory)
@@ -98,6 +93,15 @@ class DeploymentFactory(factory.django.DjangoModelFactory):
             for i in range(sample(range(3), 1)[0]):
                 self.project.add(ProjectFactory())
 
+    @factory.post_generation
+    def is_active(self, create, extracted, **kwargs):
+        if not create:
+            return
+        if extracted is not None:
+            self._is_active_set = True
+            self.is_active = extracted
+            self.save()
+
 
 class DataFileFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -112,13 +116,7 @@ class DataFileFactory(factory.django.DjangoModelFactory):
 
     deployment = factory.SubFactory(DeploymentFactory)
 
-    recording_dt = factory.Faker('date_time_between_dates',
-                                 datetime_start=factory.SelfAttribute(
-                                     "..deployment.deployment_start"),
-                                 datetime_end=factory.SelfAttribute(
-                                     "..deployment.deployment_end"),
-                                 tzinfo=djtimezone.utc
-                                 )
+    recording_dt = factory.LazyAttribute(lambda o: o.deployment.deployment_start + timedelta(days=1))
     local_path = os.path.join(
         settings.FILE_STORAGE_ROOT)
 

@@ -1,5 +1,7 @@
 import datetime
 from datetime import timedelta
+import os
+import tempfile
 
 import pytest
 from data_models.factories import (
@@ -15,6 +17,8 @@ from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError
 from django.utils import timezone as djtimezone
+
+from data_models.models import DataFile, Device, Project
 
 # Project
 
@@ -261,3 +265,200 @@ def test_file_in_deployment():
         DataFileFactory(recording_dt=datetime.datetime(
             1068, 1, 1),
             deployment=new_deployment)
+
+@pytest.mark.django_db
+def test_device_folder_size():
+    """
+    Test: Does the get_folder_size method correctly calculate folder size in different units?
+    """
+    device = DeviceFactory()
+    deployment = DeploymentFactory(device=device)
+    
+    # Create test files with different sizes
+    DataFileFactory(deployment=deployment, file_size=1024 * 1024)  # 1MB in bytes
+    DataFileFactory(deployment=deployment, file_size=2 * 1024 * 1024)  # 2MB in bytes
+    
+    assert device.get_folder_size() == 3  # 3MB
+    assert device.get_folder_size(unit="KB") == 3 * 1024  # 3MB in KB
+    assert device.get_folder_size(unit="GB") == 3 / 1024  # 3MB in GB
+
+@pytest.mark.django_db
+def test_device_last_upload():
+    """
+    Test: Does the get_last_upload method correctly return the most recent upload?
+    """
+    device = DeviceFactory()
+    deployment = DeploymentFactory(device=device)
+    
+    # Create files with different upload times
+    file1 = DataFileFactory(deployment=deployment, upload_dt=djtimezone.now() - timedelta(days=2))
+    file2 = DataFileFactory(deployment=deployment, upload_dt=djtimezone.now() - timedelta(days=1))
+    file3 = DataFileFactory(deployment=deployment, upload_dt=djtimezone.now())
+    
+    assert device.get_last_upload() == file3.upload_dt
+
+@pytest.mark.django_db
+def test_deployment_folder_size():
+    """
+    Test: Does the get_folder_size method correctly calculate folder size for a deployment?
+    """
+    deployment = DeploymentFactory()
+    
+    # Create test files with different sizes
+    DataFileFactory(deployment=deployment, file_size=1024 * 1024)  # 1MB in bytes
+    DataFileFactory(deployment=deployment, file_size=2 * 1024 * 1024)  # 2MB in bytes
+    
+    assert deployment.get_folder_size() == 3  # 3MB
+
+@pytest.mark.django_db
+def test_deployment_last_upload():
+    """
+    Test: Does the get_last_upload method correctly return the most recent upload for a deployment?
+    """
+    deployment = DeploymentFactory()
+    
+    # Create files with different upload times
+    file1 = DataFileFactory(deployment=deployment, upload_dt=djtimezone.now() - timedelta(days=2))
+    file2 = DataFileFactory(deployment=deployment, upload_dt=djtimezone.now() - timedelta(days=1))
+    file3 = DataFileFactory(deployment=deployment, upload_dt=djtimezone.now())
+    
+    assert deployment.get_last_upload() == file3.upload_dt
+
+@pytest.mark.django_db
+def test_datafile_favourite_operations():
+    """
+    Test: Do the add_favourite and remove_favourite methods work correctly?
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    user = User.objects.create_user(username='testuser', password='testpass')
+    datafile = DataFileFactory()
+    
+    # Test adding favourite
+    datafile.add_favourite(user)
+    assert user in datafile.favourite_of.all()
+    
+    # Test removing favourite
+    datafile.remove_favourite(user)
+    assert user not in datafile.favourite_of.all()
+
+@pytest.mark.django_db
+def test_datafile_queryset_methods():
+    """
+    Test: Do the DataFileQuerySet methods work correctly?
+    """
+    deployment = DeploymentFactory(
+        deployment_start=djtimezone.now() - timedelta(days=30),
+        deployment_end=djtimezone.now() + timedelta(days=30)
+    )
+    
+    # Create test files
+    file1 = DataFileFactory(deployment=deployment, file_size=1024 * 1024, recording_dt=djtimezone.now() - timedelta(days=2))  # 1MB
+    file2 = DataFileFactory(deployment=deployment, file_size=2 * 1024 * 1024, recording_dt=djtimezone.now() - timedelta(days=1))  # 2MB
+    file3 = DataFileFactory(deployment=deployment, file_size=3 * 1024 * 1024, recording_dt=djtimezone.now())  # 3MB
+    
+    # Test file_size method
+    assert deployment.files.file_size() == 6  # 6MB total
+    
+    # Test min_date and max_date methods
+    assert deployment.files.min_date() == file1.recording_dt
+    assert deployment.files.max_date() == file3.recording_dt
+
+@pytest.mark.django_db
+def test_project_is_active():
+    """
+    Test: Does the is_active method correctly identify active projects?
+    """
+    project = ProjectFactory()
+    device = DeviceFactory()
+
+    # Create inactive deployment in the past
+    DeploymentFactory(device=device, project=[project], is_active=False,
+                     deployment_start=djtimezone.now() - timedelta(days=180),
+                     deployment_end=djtimezone.now() - timedelta(days=90))
+    assert not project.is_active()
+
+    # Create active deployment for current time
+    DeploymentFactory(device=device, project=[project], is_active=True,
+                     deployment_start=djtimezone.now() - timedelta(days=30),
+                     deployment_end=djtimezone.now() + timedelta(days=30))
+    assert project.is_active()
+
+
+@pytest.mark.django_db
+def test_device_is_active():
+    """
+    Test: Does the is_active method correctly identify active devices?
+    """
+    device = DeviceFactory()
+
+    # Create inactive deployment in the past
+    DeploymentFactory(device=device, is_active=False,
+                     deployment_start=djtimezone.now() - timedelta(days=180),
+                     deployment_end=djtimezone.now() - timedelta(days=90))
+    assert not device.is_active()
+
+    # Create active deployment for current time
+    DeploymentFactory(device=device, is_active=True,
+                     deployment_start=djtimezone.now() - timedelta(days=30),
+                     deployment_end=djtimezone.now() + timedelta(days=30))
+    assert device.is_active()
+
+@pytest.mark.django_db
+def test_datafile_clean_file():
+    """
+    Test: Does the clean_file method correctly handle file cleanup?
+    """
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(b"test content")
+        temp_path = temp_file.name
+    
+    # Create DataFile with the temporary file path
+    datafile = DataFileFactory(
+        local_path=os.path.dirname(temp_path),
+        path="",
+        file_name=os.path.splitext(os.path.basename(temp_path))[0],
+        file_format=os.path.splitext(os.path.basename(temp_path))[1]
+    )
+    
+    # Test clean_file with delete_obj=False
+    datafile.clean_file(delete_obj=False)
+    assert DataFile.objects.filter(id=datafile.id).exists()
+    
+    # Create another temporary file for the second test
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(b"test content")
+        temp_path = temp_file.name
+    
+    datafile.local_path = os.path.dirname(temp_path)
+    datafile.path = ""
+    datafile.file_name = os.path.splitext(os.path.basename(temp_path))[0]
+    datafile.file_format = os.path.splitext(os.path.basename(temp_path))[1]
+    datafile.save()
+    
+    # Test clean_file with delete_obj=True
+    datafile.clean_file(delete_obj=True)
+    assert not DataFile.objects.filter(id=datafile.id).exists()
+
+@pytest.mark.django_db
+def test_deployment_check_dates():
+    """
+    Test: Does the check_dates method correctly validate deployment dates?
+    """
+    deployment = DeploymentFactory()
+    
+    # Test valid dates
+    valid_dates = [
+        deployment.deployment_start,
+        deployment.deployment_start + timedelta(days=1)
+    ]
+    assert all(deployment.check_dates(valid_dates))  # All dates should be valid
+    
+    # Test invalid dates (before deployment start)
+    invalid_dates = [
+        deployment.deployment_start - timedelta(days=1),
+        deployment.deployment_start - timedelta(days=2)
+    ]
+    assert not all(deployment.check_dates(invalid_dates))  # All dates should be invalid
