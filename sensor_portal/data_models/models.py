@@ -172,6 +172,7 @@ class Device(BaseModel):
 
     username = models.CharField(
         max_length=100, unique=True, null=True, blank=True, default=None)
+    password = models.CharField(max_length=100,null=False,blank=False, default="test")
     
     input_storage = models.ForeignKey(
         DataStorageInput, null=True, blank=True, related_name="linked_devices", on_delete=models.SET_NULL)
