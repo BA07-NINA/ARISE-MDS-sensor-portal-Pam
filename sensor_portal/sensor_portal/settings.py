@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     'archiving',
     'observation_editor',
     'drf_yasg',
+    'blog',
 
 ]
 
