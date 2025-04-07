@@ -11,7 +11,7 @@ function Sidebar() {
   const isDevicesActive = location.pathname.startsWith('/device')
 
   return (
-    <div className={`h-screen border-r bg-gray-50 transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
+    <div data-testid="sidebar-container" className={`h-screen border-r bg-gray-50 transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
       <nav className="h-full bg-white">
         <div className="flex items-center justify-end p-3">
           <button

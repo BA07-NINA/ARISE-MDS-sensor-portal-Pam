@@ -102,6 +102,7 @@ const DeploymentMap = ({ deployments }: Props) => {
 	return (
 		<div>
 			<MapContainer
+				data-testid="map-container"
 				ref={mapRef}
 				center={[0, 0]}
 				zoom={1}
@@ -149,8 +150,9 @@ const DeploymentMap = ({ deployments }: Props) => {
 						);
 					})}
 				</FeatureGroup>
-				<UserLocationMarker />
+				<UserLocationMarker data-testid="user-location-marker" />
 				<ResetLocation
+					data-testid="reset-location-button"
 					handleChangeLatLong={() => {
 						setBounds();
 					}}
