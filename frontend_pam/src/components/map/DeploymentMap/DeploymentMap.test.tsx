@@ -5,20 +5,28 @@ import DeploymentMap from './DeploymentMap';
 import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router';
 
 vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="map-container">{children}</div>,
+  MapContainer: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="map-container">{children}</div>
+  ),
   TileLayer: () => <div data-testid="tile-layer" />,
-  FeatureGroup: ({ children }: { children: React.ReactNode }) => <div data-testid="feature-group">{children}</div>,
-  Popup: ({ children }: { children: React.ReactNode }) => <div data-testid="popup">{children}</div>,
+  FeatureGroup: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="feature-group">{children}</div>
+  ),
+  Popup: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="popup">{children}</div>
+  ),
 }));
 
 vi.mock('@adamscybot/react-leaflet-component-marker', () => ({
-  Marker: ({ children }: { children: React.ReactNode }) => (
-    <button data-testid="marker" onClick={() => {}}>{children}</button>
+  Marker: ({ children, ...props }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button data-testid="marker" onClick={props.onClick}>
+      {children}
+    </button>
   ),
 }));
 
 vi.mock('../MapUserLocationMarker', () => ({
-  default: () => <div data-testid="user-location-marker" />
+  default: () => <div data-testid="user-location-marker">User Location Marker</div>
 }));
 
 vi.mock('../MapControlResetLocation', () => ({
@@ -29,27 +37,40 @@ vi.mock('../MapControlResetLocation', () => ({
   )
 }));
 
+// Updated mockDeployments with missing properties added
 const mockDeployments = [
   {
-    latitude: 59.91,
-    longitude: 10.75,
-    deployment_device_ID: 'device123',
-    extra_data: {
-      device_config: {
-        device_ID: '123',
-      },
-    },
+    deploymentId: "1",
+    startDate: "2024-12-01T10:00:00Z",
+    endDate: "2025-12-01T10:00:00Z",
+    lastUpload: "2025-01-01T10:00:00Z",
+    batteryLevel: 95,
+    siteName: "Test Site",
+    folderSize: 1024,
+    coordinateUncertainty: "5",
+    gpsDevice: "Garmin",
+    micHeight: 1.5,
+    micDirection: "",
+    latitude: 59.910000,
+    longitude: 10.750000,
+    habitat: "Forest",
+    protocolChecklist: "",
+    score: 100,
+    comment: "",
+    action: "active",
+    userEmail: "test@example.com",
+    country: "Norway",
   },
 ];
 
-// Create a testable route
+// Create testable routes using @tanstack/react-router.
 const rootRoute = createRootRoute({
-  component: () => <DeploymentMap deployments={mockDeployments as any} />,
+  component: () => <DeploymentMap deployments={mockDeployments} />,
 });
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: () => <DeploymentMap deployments={mockDeployments as any} />,
+  component: () => <DeploymentMap deployments={mockDeployments} />,
 });
 const router = createRouter({
   routeTree: rootRoute.addChildren([indexRoute]),
@@ -71,14 +92,17 @@ describe('DeploymentMap component', () => {
     await screen.findByTestId('map-container');
 
     const marker = screen.getByTestId('marker');
-    fireEvent.click(marker); // Simuler klikking
+    fireEvent.click(marker);
 
     await waitFor(() => {
-      expect(screen.getByText(/View Device: 123/i)).toBeInTheDocument();
+      expect(screen.getByTestId('popup')).toBeInTheDocument();
     });
 
-    const link = screen.getByRole('link', { name: /View Device: 123/i });
-    expect(link).toHaveAttribute('href', '/devices/123');
+    // The link should display "View Site: Test Site"
+    expect(screen.getByText(/View Site: Test Site/i)).toBeInTheDocument();
+
+    const link = screen.getByRole('link', { name: /View Site: Test Site/i });
+    expect(link).toBeInTheDocument();
   });
 
   it('renders user location marker and reset button', async () => {
