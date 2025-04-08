@@ -26,8 +26,8 @@ const indexRoute = createRoute({
 
 const devicesRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: 'devices',
-  component: () => <div>Devices</div>,
+  path: 'deployments',
+  component: () => <div>Deployments</div>,
 });
 
 const router = createRouter({
@@ -51,21 +51,21 @@ describe('Breadcrumbs component', () => {
     expect(overviewLink).toBeInTheDocument();
   });
 
-  it('renders nested breadcrumbs correctly for "/devices"', async () => {
+  it('renders nested breadcrumbs correctly for "/deployments"', async () => {
     render(<RouterProvider router={router} />);
     
     await act(async () => {
-      await router.navigate({ to: '/devices' });
+      await router.navigate({ to: '/deployments' });
     });
     
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /Devices/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Deployments/i })).toBeInTheDocument();
     });
     
     const overviewLink = screen.getByRole('link', { name: /Overview/i });
     expect(overviewLink).toBeInTheDocument();
     
-    const devicesLink = screen.getByRole('link', { name: /Devices/i });
+    const devicesLink = screen.getByRole('link', { name: /Deployments/i });
     expect(devicesLink).toBeInTheDocument();
   });
 });

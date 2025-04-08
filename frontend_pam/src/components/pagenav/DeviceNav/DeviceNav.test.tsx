@@ -6,7 +6,7 @@ import '@testing-library/jest-dom';
 describe('DeviceNav component', () => {
   it('renders both tabs', () => {
     render(<DeviceNav activeTab="details" setActiveTab={() => {}} />);
-    expect(screen.getByText('Details')).toBeInTheDocument();
+    expect(screen.getByText('Device Details')).toBeInTheDocument();
     expect(screen.getByText('Data Files')).toBeInTheDocument();
   });
 
@@ -18,7 +18,7 @@ describe('DeviceNav component', () => {
     fireEvent.click(screen.getByText('Data Files'));
     expect(setActiveTab).toHaveBeenCalledWith('datafiles');
 
-    fireEvent.click(screen.getByText('Details'));
+    fireEvent.click(screen.getByText('Device Details'));
     expect(setActiveTab).toHaveBeenCalledWith('details');
   });
 });
