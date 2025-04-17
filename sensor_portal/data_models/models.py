@@ -214,10 +214,14 @@ class Device(BaseModel):
     def clean(self):
         result, message = validators.device_check_type(
             self.type, self.model)
-        print(result, message)
         if not result:
             raise ValidationError(message)
-        super(Device, self).clean()
+
+        # Validate SD card size
+        if self.sd_card_size is not None and self.sd_card_size < 0:
+            raise ValidationError({'sd_card_size': 'SD card size cannot be negative'})
+
+        super().clean()
 
     def deployment_from_date(self, dt):
 
@@ -412,8 +416,17 @@ class Deployment(BaseModel):
             )
             if not result:
                 raise ValidationError(message)
+
+        # Validate coordinates
+        if self.latitude is not None:
+            if not (-90 <= float(self.latitude) <= 90):
+                raise ValidationError({'latitude': 'Latitude must be between -90 and 90 degrees'})
         
-        super(Deployment, self).clean()
+        if self.longitude is not None:
+            if not (-180 <= float(self.longitude) <= 180):
+                raise ValidationError({'longitude': 'Longitude must be between -180 and 180 degrees'})
+        
+        super().clean()
 
     def save(self, *args, **kwargs):
         # Bruk en fallback-streng dersom self.device er None,
@@ -695,28 +708,24 @@ class DataFile(BaseModel):
         except Exception as e:
             print(e)
 
+    def clean(self):
+        # Validate that the recording date is within the deployment period
+        if self.recording_dt and self.deployment:
+            result, message = validators.data_file_in_deployment(
+                self.recording_dt, self.deployment
+            )
+            if not result:
+                raise ValidationError(message)
+        
+        super().clean()
+
     def save(self, *args, **kwargs):
         if self.file_type is None:
             self.file_type = self.deployment.device.type
         self.set_file_url()
         super().save(*args, **kwargs)
 
-    def clean(self):
-        result, message = validators.deployment_start_time_after_end_time(
-            self.deployment_start, self.deployment_end
-        )
-        if not result:
-            raise ValidationError(message)
-        
-        if self.device is not None:
-            result, message = validators.deployment_check_overlap(
-                self.deployment_start, self.deployment_end, self.device, self.pk
-            )
-            if not result:
-                raise ValidationError(message)
-        
-        super(Deployment, self).clean()
-        
+
 @receiver(post_save, sender=DataFile)
 def post_save_file(sender, instance, created, **kwargs):
     instance.deployment.set_thumb_url()
