@@ -17,21 +17,50 @@ from django.conf import settings
 
 class DatabaseModelTests(TestCase):
     def test_device_model_validation(self):
-        """Test device model validation and relationships"""
-        # Create data types
-        type_1 = DataTypeFactory(name="audio")
-        type_2 = DataTypeFactory(name="video")
+        """Test device model manufacturer and type validation"""
+        # Create a data type for testing
+        data_type = DataTypeFactory(name="AudioMoth")
         
-        # Create device model with type_1
-        model = DeviceModelFactory(type=type_1)
+        # Create a device model with the data type
+        device_model = DeviceModelFactory(
+            name="AM1",
+            manufacturer="Open Acoustic Devices",
+            type=data_type
+        )
         
-        # Test valid device creation
-        device = DeviceFactory(model=model, type=type_1)
-        self.assertEqual(device.type, type_1)
+        # Create a device with valid data - should succeed
+        device = DeviceFactory(
+            device_ID="TESTDEV001",  # Changed ID to be unique
+            model=device_model,
+            type=data_type  # Type matches model's type
+        )
         
-        # Test invalid device creation (type mismatch)
+        # Try to create another device with the same ID - should fail
         with self.assertRaises(ValidationError):
-            DeviceFactory(model=model, type=type_2)
+            DeviceFactory(
+                device_ID="TESTDEV001",  # Same ID as above
+                model=device_model,
+                type=data_type
+            )
+        
+        # Create another data type
+        different_type = DataTypeFactory(name="Different")
+        
+        # Try to create a device with a type that doesn't match its model's type
+        with self.assertRaises(ValidationError):
+            DeviceFactory(
+                device_ID="TESTDEV002",  # Different unique ID
+                model=device_model,  # Model has type AudioMoth
+                type=different_type  # Different type - should fail
+            )
+        
+        # Verify the device inherits type from model if not specified
+        device_no_type = DeviceFactory(
+            device_ID="TESTDEV003",  # Different unique ID
+            model=device_model,
+            type=None  # Not specifying type
+        )
+        assert device_no_type.type == device_model.type, "Device should inherit type from model"
 
     def test_device_status_transitions(self):
         """Test device status transitions and validation"""
@@ -373,4 +402,211 @@ class DatabaseModelTests(TestCase):
         
         self.assertEqual(total_kb, 7168)  # (1 + 2 + 4) * 1024 KB
         self.assertEqual(total_mb, 7)  # 1 + 2 + 4 MB
-        self.assertAlmostEqual(total_gb, 0.007, places=3)  # 7/1024 GB 
+        self.assertAlmostEqual(total_gb, 0.007, places=3)  # 7/1024 GB
+
+    def test_device_date_range(self):
+        """Test device date range validation"""
+        now = djtimezone.now()
+        device = DeviceFactory(
+            start_date=now,
+            end_date=now + timedelta(days=30)
+        )
+        
+        # Test valid date range
+        self.assertEqual(device.start_date, now)
+        self.assertEqual(device.end_date, now + timedelta(days=30))
+        
+        # Test device with no end date
+        device = DeviceFactory(
+            start_date=now,
+            end_date=None
+        )
+        self.assertEqual(device.start_date, now)
+        self.assertIsNone(device.end_date)
+
+    def test_deployment_timezone_handling(self):
+        """Test deployment timezone handling"""
+        import pytz
+        
+        # Create deployment with specific timezone
+        oslo_tz = pytz.timezone('Europe/Oslo')
+        now = djtimezone.now()
+        
+        # Make sure now is timezone-aware
+        if now.tzinfo is None:
+            now = djtimezone.make_aware(now, pytz.UTC)
+        
+        deployment = DeploymentFactory(
+            time_zone=oslo_tz,
+            deployment_start=now,
+            deployment_end=now + timedelta(days=1)
+        )
+        
+        # Test timezone is correctly set
+        self.assertEqual(deployment.time_zone, oslo_tz)
+        
+        # Test with dates in the same timezone
+        dates = [
+            now,  # UTC time
+            now.astimezone(oslo_tz),  # Oslo time
+            (now + timedelta(hours=1)).astimezone(oslo_tz)  # Oslo time + 1 hour
+        ]
+        
+        # All dates should be within deployment period
+        results = deployment.check_dates(dates)
+        self.assertTrue(all(results))
+        
+        # Test with date outside range
+        future_time = now + timedelta(days=2)
+        results = deployment.check_dates([future_time])
+        self.assertFalse(results[0])
+
+    def test_data_file_storage_management(self):
+        """Test data file storage and URL management"""
+        deployment = DeploymentFactory()
+        data_file = DataFileFactory(
+            deployment=deployment,
+            local_storage=True,
+            file_name="test_storage",
+            file_format=".wav",
+            path="test/storage"
+        )
+        
+        # Test local storage settings
+        self.assertTrue(data_file.local_storage)
+        self.assertFalse(data_file.archived)
+        
+        # Test URL generation for local storage
+        data_file.set_file_url()
+        self.assertIsNotNone(data_file.file_url)
+        self.assertTrue(data_file.file_url.endswith("test/storage/test_storage.wav"))
+        
+        # Test URL behavior when switching to remote storage
+        data_file.local_storage = False
+        data_file.set_file_url()
+        self.assertIsNone(data_file.file_url)
+
+    def test_project_ownership(self):
+        """Test project ownership and user relationships"""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        # Create users
+        owner = User.objects.create_user(username="owner", password="test")
+        manager = User.objects.create_user(username="manager", password="test")
+        viewer = User.objects.create_user(username="viewer", password="test")
+        annotator = User.objects.create_user(username="annotator", password="test")
+        
+        # Create project with relationships
+        project = ProjectFactory(owner=owner)
+        project.managers.add(manager)
+        project.viewers.add(viewer)
+        project.annotators.add(annotator)
+        
+        # Test relationships
+        self.assertEqual(project.owner, owner)
+        self.assertIn(manager, project.managers.all())
+        self.assertIn(viewer, project.viewers.all())
+        self.assertIn(annotator, project.annotators.all())
+        
+        # Test reverse relationships
+        self.assertIn(project, owner.owned_projects.all())
+        self.assertIn(project, manager.managed_projects.all())
+        self.assertIn(project, viewer.viewable_projects.all())
+        self.assertIn(project, annotator.annotatable_projects.all())
+
+    def test_deployment_device_relationship(self):
+        """Test deployment device relationship and ID generation"""
+        # Create required objects
+        data_type = DataTypeFactory(name="AudioMoth")
+        device_model = DeviceModelFactory(
+            name="AM1",
+            type=data_type
+        )
+        
+        # Create a device with a unique ID specifically for this test
+        device = DeviceFactory(
+            device_ID="DEPTEST001",  # Unique ID for deployment tests
+            type=data_type,
+            model=device_model
+        )
+        site = SiteFactory()
+        
+        # Delete any existing deployments for this device to ensure clean state
+        Deployment.objects.filter(device=device).delete()
+        
+        # Create first deployment for this device
+        deployment = DeploymentFactory(
+            device=device,
+            site=site
+        )
+        
+        # Verify the deployment ID format
+        expected_id = f"{device.device_ID}_{device.type.name}_1"
+        assert deployment.deployment_device_ID == expected_id, f"Expected {expected_id}, got {deployment.deployment_device_ID}"
+        
+        # Create second deployment for same device
+        deployment2 = DeploymentFactory(
+            device=device,
+            site=site
+        )
+        
+        # Verify the second deployment gets incremented number
+        expected_id2 = f"{device.device_ID}_{device.type.name}_2"
+        assert deployment2.deployment_device_ID == expected_id2, f"Expected {expected_id2}, got {deployment2.deployment_device_ID}"
+
+    def test_data_file_cleanup(self):
+        """Test data file cleanup and cascade behavior"""
+        import tempfile
+        import os
+        
+        # Create temporary directory and file
+        temp_dir = tempfile.mkdtemp()
+        temp_file_path = os.path.join(temp_dir, "test.wav")
+        with open(temp_file_path, 'w') as f:
+            f.write("test")
+        
+        # Create data file pointing to temp file
+        deployment = DeploymentFactory()
+        data_file = DataFileFactory(
+            deployment=deployment,
+            local_path=temp_dir,
+            path="",
+            file_name="test",
+            file_format=".wav"
+        )
+        
+        # Test file cleanup
+        data_file.clean_file(delete_obj=True)
+        
+        # File should be deleted
+        self.assertFalse(os.path.exists(temp_file_path))
+        
+        # Clean up temp directory
+        os.rmdir(temp_dir)
+
+    def test_deployment_date_timezone_validation(self):
+        """Test deployment date validation with different timezones"""
+        import pytz
+        
+        # Create deployment in Oslo timezone
+        oslo_tz = pytz.timezone('Europe/Oslo')
+        now = djtimezone.now()
+        
+        deployment = DeploymentFactory(
+            time_zone=oslo_tz,
+            deployment_start=now,
+            deployment_end=now + timedelta(days=1)
+        )
+        
+        # Test date validation in different timezone
+        tokyo_tz = pytz.timezone('Asia/Tokyo')
+        tokyo_time = now.astimezone(tokyo_tz)
+        
+        # The time should still be valid regardless of timezone
+        self.assertTrue(deployment.check_dates([tokyo_time])[0])
+        
+        # Test with date outside range
+        future_time = now + timedelta(days=2)
+        future_time = future_time.astimezone(tokyo_tz)
+        self.assertFalse(deployment.check_dates([future_time])[0]) 

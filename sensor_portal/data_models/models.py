@@ -224,6 +224,12 @@ class Device(BaseModel):
         if self.sd_card_size is not None and self.sd_card_size < 0:
             raise ValidationError({'sd_card_size': 'SD card size cannot be negative'})
 
+        # Check for duplicate device_ID
+        if self.device_ID:
+            existing_device = Device.objects.filter(device_ID=self.device_ID).exclude(pk=self.pk).first()
+            if existing_device:
+                raise ValidationError({'device_ID': 'A device with this ID already exists.'})
+
         super().clean()
 
     def deployment_from_date(self, dt):
@@ -432,17 +438,23 @@ class Deployment(BaseModel):
         super().clean()
 
     def save(self, *args, **kwargs):
-        # Bruk en fallback-streng dersom self.device er None,
-        # eller dersom self.device.type er None.
+        # Use device_ID if available, otherwise use deployment_ID as fallback
         if self.device is not None and self.device.type is not None:
+            device_id = self.device.device_ID
             device_type_name = self.device.type.name
             # Update device_type to match the new device's type
             self.device_type = self.device.type
-        else:
-            device_type_name = "NoDevice"
 
-        # Bygg deployment_device_ID med fallback-verdien
-        self.deployment_device_ID = f"{self.deployment_ID}_{device_type_name}_{self.device_n}"
+            # Set device_n to be one more than the highest existing number for this device
+            if not self.id:  # Only for new deployments
+                max_n = Deployment.objects.filter(device=self.device).aggregate(models.Max('device_n'))['device_n__max']
+                self.device_n = 1 if max_n is None else max_n + 1
+        else:
+            device_id = "NoDevice"
+            device_type_name = "NoType"
+
+        # Build deployment_device_ID
+        self.deployment_device_ID = f"{device_id}_{device_type_name}_{self.device_n}"
 
         self.is_active = self.check_active()
 
@@ -482,15 +494,21 @@ class Deployment(BaseModel):
         return False
 
     def check_dates(self, dt_list):
-
         result_list = []
 
         for dt in dt_list:
-            # if no TZ, localise to the device's timezone
-            dt = check_dt(dt, self.time_zone)
-            # print(dt)
-            result_list.append((dt >= self.deployment_start) and (
-                (self.deployment_end is None) or (dt <= self.deployment_end)))
+            # if no TZ, localize to the deployment's timezone
+            if dt.tzinfo is None:
+                dt = self.time_zone.localize(dt)
+            
+            # Convert deployment dates to the same timezone as dt
+            start = self.deployment_start.astimezone(dt.tzinfo)
+            end = self.deployment_end.astimezone(dt.tzinfo) if self.deployment_end else None
+            
+            # Check if dt is within the deployment period
+            result_list.append(
+                (dt >= start) and (end is None or dt <= end)
+            )
 
         return result_list
 
