@@ -187,17 +187,20 @@ class Device(BaseModel):
     def get_folder_size(self, unit="MB"):
         """
         Calculate the total size of all DataFile objects associated with this device.
-        Filstørrelse antas å være lagret i MB som standard.
-        Du kan spesifisere en annen enhet ved å sende 'KB' eller 'GB'.
+        File size is stored in bytes by default.
+        You can specify a different unit by passing 'KB', 'MB', or 'GB'.
         """
         agg = DataFile.objects.filter(deployment__device=self).aggregate(total_size=Sum('file_size'))
         total_size = agg['total_size'] or 0
 
+        # Convert from bytes to requested unit
         if unit.upper() == "KB":
-            return total_size * 1024
-        elif unit.upper() == "GB":
             return total_size / 1024
-        return total_size
+        elif unit.upper() == "MB":
+            return total_size / (1024 * 1024)
+        elif unit.upper() == "GB":
+            return total_size / (1024 * 1024 * 1024)
+        return total_size  # Return in bytes if no unit specified
 
     def get_last_upload(self):
         """Get the datetime of the most recent file upload for this device"""
@@ -433,6 +436,8 @@ class Deployment(BaseModel):
         # eller dersom self.device.type er None.
         if self.device is not None and self.device.type is not None:
             device_type_name = self.device.type.name
+            # Update device_type to match the new device's type
+            self.device_type = self.device.type
         else:
             device_type_name = "NoDevice"
 
@@ -440,10 +445,6 @@ class Deployment(BaseModel):
         self.deployment_device_ID = f"{self.deployment_ID}_{device_type_name}_{self.device_n}"
 
         self.is_active = self.check_active()
-
-        # Hvis self.device er satt, men self.device_type ikke er satt, sett det
-        if self.device is not None and self.device_type is None:
-            self.device_type = self.device.type
 
         if self.longitude and self.latitude:
             self.point = Point(
