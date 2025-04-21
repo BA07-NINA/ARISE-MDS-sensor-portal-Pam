@@ -26,7 +26,7 @@ import { getData } from "@/utils/FetchFunctions";
 import DownloadButton from "@/components/DownloadButton/DownloadButton";
 import AudioPlayer from "@/components/AudioPlayer/AudioPlayer";
 import { bytesToMegabytes } from "@/utils/convertion";
-
+import UploadButton from "@/components/UploadButton/UploadButton";
 
 export default function DeviceDataFilesPage() {
   const { siteName } = Route.useParams();
@@ -95,8 +95,8 @@ export default function DeviceDataFilesPage() {
       ),
       cell: ({ row }) => (
         <Link
-          to="/deployments/$deviceId/$dataFileId"
-          params={{ deviceId: deviceId, dataFileId: row.original.id }}
+          to="/deployments/$siteName/$dataFileId"
+          params={{ siteName: siteName, dataFileId: row.original.id }}
           className="text-blue-500 hover:underline"
         >
           {row.original.id}
@@ -186,12 +186,12 @@ export default function DeviceDataFilesPage() {
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <AudioPlayer
-            deviceId={deviceId}
+            deviceId={siteName}
             fileId={row.original.id}
             fileFormat={row.original.fileFormat}
           />
           <DownloadButton
-            deviceId={deviceId}
+            deviceId={siteName}
             fileId={row.original.id}
             fileFormat={row.original.fileFormat}
           />
@@ -213,7 +213,10 @@ export default function DeviceDataFilesPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-6">Data Files</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Data Files</h1>
+        <UploadButton />
+      </div>
     
       <div className="rounded-md border m-5 shadow-md">
         <Table>

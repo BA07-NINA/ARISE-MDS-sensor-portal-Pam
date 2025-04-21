@@ -295,10 +295,18 @@ class DataFileSerializer(serializers.ModelSerializer):
     def validate(self, data):
         data = super().validate(data)
 
-        result, message = validators.data_file_in_deployment(
-            data.get('recording_dt', self.instance.recording_dt), data.get('deployment', self.instance.deployment))
-        if not result:
-            raise serializers.ValidationError(message)
+        recording_dt = data.get('recording_dt')
+        deployment = data.get('deployment')
+
+        if self.instance:
+            recording_dt = recording_dt or self.instance.recording_dt
+            deployment = deployment or self.instance.deployment
+
+        if recording_dt and deployment:
+            result, message = validators.data_file_in_deployment(recording_dt, deployment)
+            if not result:
+                raise serializers.ValidationError(message)
+
         return data
 
 

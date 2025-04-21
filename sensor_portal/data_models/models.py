@@ -702,20 +702,14 @@ class DataFile(BaseModel):
         super().save(*args, **kwargs)
 
     def clean(self):
-        result, message = validators.deployment_start_time_after_end_time(
-            self.deployment_start, self.deployment_end
-        )
-        if not result:
-            raise ValidationError(message)
-        
-        if self.device is not None:
-            result, message = validators.deployment_check_overlap(
-                self.deployment_start, self.deployment_end, self.device, self.pk
-            )
-            if not result:
-                raise ValidationError(message)
-        
-        super(Deployment, self).clean()
+        # Validate that recording_dt falls within deployment's date range
+        if self.recording_dt:
+            deployment = self.deployment
+            if deployment.deployment_start and self.recording_dt < deployment.deployment_start:
+                raise ValidationError("Recording date cannot be before deployment start date")
+            if deployment.deployment_end and self.recording_dt > deployment.deployment_end:
+                raise ValidationError("Recording date cannot be after deployment end date")
+        super().clean()
         
 @receiver(post_save, sender=DataFile)
 def post_save_file(sender, instance, created, **kwargs):
