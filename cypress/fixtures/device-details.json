@@ -1,0 +1,8 @@
+{
+    "device_ID":      "device123",
+    "configuration":  "cfg‑A",
+    "sim_card_icc":   "ICC‑0001",
+    "sim_card_batch": "BATCH‑42",
+    "sd_card_size":   32
+  }
+  
