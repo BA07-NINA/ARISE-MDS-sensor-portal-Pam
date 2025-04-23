@@ -10,45 +10,40 @@ import { timeSinceLastUpload } from "@/utils/timeFormat";
 
 export default function SiteDetailPage() {
   const { siteName } = Route.useParams();
-
   const authContext = useContext(AuthContext) as any;
   const { authTokens } = authContext || { authTokens: null };
-
-  if (!authTokens) {
-    return <p>Loading authentication...</p>;
-  }
   const apiURL = `deployment/by_site/${siteName}/`;
 
   const getDataFunc = async (): Promise<Deployment> => {
     if (!authTokens?.access) {
-			throw new Error("No access token");
-		}
-					
+      throw new Error("No access token");
+    }
+          
     const response_json = await getData(apiURL, authTokens.access);
-		console.log("respone_json site deployment map: ", response_json);
+    console.log("respone_json site deployment map: ", response_json);
 
     const deployment: Deployment = {
-			deploymentId: response_json.deployment_ID,
-			startDate: response_json.deployment_start,
-			endDate: response_json.deployment_end,
-			folderSize: response_json.folder_size,
-			lastUpload: response_json.last_upload,
-			batteryLevel: 0,
-			action: "",
-			siteName: response_json.site_name,
-			coordinateUncertainty: response_json.coordinate_uncertainty,
-			gpsDevice: response_json.gps_device,
-			micHeight: response_json.mic_height,
-			micDirection: response_json.mic_direction,
-			habitat: response_json.habitat,
-			protocolChecklist: response_json.protocol_checklist,
-			score: response_json.score,
-			comment: response_json.comment,
-			userEmail: response_json.user_email,
-			country: response_json.country,
-			longitude: response_json.longitude,
-			latitude: response_json.latitude,
-		}
+      deploymentId: response_json.deployment_ID,
+      startDate: response_json.deployment_start,
+      endDate: response_json.deployment_end,
+      folderSize: response_json.folder_size,
+      lastUpload: response_json.last_upload,
+      batteryLevel: 0,
+      action: "",
+      siteName: response_json.site_name,
+      coordinateUncertainty: response_json.coordinate_uncertainty,
+      gpsDevice: response_json.gps_device,
+      micHeight: response_json.mic_height,
+      micDirection: response_json.mic_direction,
+      habitat: response_json.habitat,
+      protocolChecklist: response_json.protocol_checklist,
+      score: response_json.score,
+      comment: response_json.comment,
+      userEmail: response_json.user_email,
+      country: response_json.country,
+      longitude: response_json.longitude,
+      latitude: response_json.latitude,
+    }
     return deployment;
   };
 
@@ -64,12 +59,19 @@ export default function SiteDetailPage() {
 
   console.log(deployment);
 
+  // Early returns after all hooks are called
+  if (!authTokens) {
+    return <p>Loading authentication...</p>;
+  }
+
   if (isLoading) {
     return <p>Loading deployment...</p>;
   }
+
   if (error) {
     return <p>Error: {(error as Error).message}</p>;
   }
+
   if (!deployment) {
     return <p>No deployment found</p>;
   }

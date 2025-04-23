@@ -18,68 +18,74 @@ import {
 } from "@tanstack/react-table";
 import { TbArrowsUpDown } from "react-icons/tb";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { Route } from ".";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import AuthContext from "@/auth/AuthContext";
-import { getData } from "@/utils/FetchFunctions";
 import DownloadButton from "@/components/DownloadButton/DownloadButton";
 import AudioPlayer from "@/components/AudioPlayer/AudioPlayer";
 import { bytesToMegabytes } from "@/utils/convertion";
 import UploadButton from "@/components/UploadButton/UploadButton";
+import DateForm from "@/components/AudioQuality/DateForm";
+import { useQuery } from "@tanstack/react-query";
 
 export default function DeviceDataFilesPage() {
+  // All hooks must be declared at the top level
   const { siteName } = Route.useParams();
-
   const authContext = useContext(AuthContext) as any;
   const { authTokens } = authContext || { authTokens: null };
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [filteredDataFiles, setFilteredDataFiles] = useState<DataFile[]>([]);
 
-  if (!authTokens) {
-    return <p>Loading authentication...</p>;
-  }
-
-  const apiURL = `devices/${siteName}/datafiles`;
-
-  const getDataFunc = async (): Promise<DataFile[]> => {
-    if (!authTokens?.access) return [];
-    const response_json = await getData(apiURL, authTokens.access);
-  
-    const dataFiles: DataFile[] = response_json.map((dataFile: any):DataFile => ({
-      id: dataFile.id,
-      deployment: dataFile.deployment,
-      fileName: dataFile.file_name,
-      fileFormat: dataFile.file_format,
-      fileSize: dataFile.file_size,
-      fileType: dataFile.file_type,
-      path: dataFile.path,
-      localPath: dataFile.local_path,
-      uploadDt: dataFile.upload_dt,
-      recordingDt: dataFile.recording_dt,
-      config: dataFile.config,
-      sampleRate: dataFile.sample_rate,
-      fileLength: dataFile.file_length,
-      qualityScore: dataFile.quality_score,
-      qualityIssues: dataFile.quality_issues || [],
-      qualityCheckDt: dataFile.quality_check_dt,
-      qualityCheckStatus: dataFile.quality_check_status,
-      extraData: dataFile.extra_data,
-      thumbUrl: dataFile.thumb_url,
-      localStorage: dataFile.local_storage,
-      archived: dataFile.archived,
-      favourite: dataFile.is_favourite
-    }));
-
-    return dataFiles;
-  };
-
-  const {
-    data: dataFiles = []
-  } = useQuery({
-    queryKey: [apiURL],
-    queryFn: getDataFunc,
-    enabled: !!authTokens?.access,
+  // Data fetching
+  const { data: dataFiles, isLoading, error } = useQuery({
+    queryKey: ['datafiles', siteName],
+    queryFn: async () => {
+      if (!authTokens?.access) return [];
+      const response = await fetch(`/api/datafile/?deployment__site_name=${siteName}`, {
+        headers: {
+          'Authorization': `Bearer ${authTokens.access}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch data files');
+      }
+      const data = await response.json();
+      return data.map((file: any) => ({
+        id: file.id.toString(),
+        deployment: file.deployment.toString(),
+        fileName: file.file_name,
+        fileFormat: file.file_format,
+        fileSize: file.file_size,
+        fileType: file.file_type,
+        path: file.path,
+        localPath: file.path,
+        uploadDt: file.upload_dt,
+        recordingDt: file.recording_datetime,
+        config: file.config,
+        sampleRate: file.sample_rate,
+        fileLength: file.file_length,
+        qualityScore: file.quality_score,
+        qualityIssues: file.quality_issues || [],
+        qualityCheckDt: file.quality_check_dt,
+        qualityCheckStatus: file.quality_check_status,
+        extraData: file.extra_data || null,
+        thumbUrl: file.thumb_url,
+        localStorage: false,
+        archived: false,
+        favourite: file.is_favourite
+      }));
+    },
+    enabled: !!authTokens?.access
   });
 
+  // Update filtered data when dataFiles changes
+  useEffect(() => {
+    if (dataFiles) {
+      setFilteredDataFiles(dataFiles);
+    }
+  }, [dataFiles]);
+
+  // Table columns definition
   const columns: ColumnDef<DataFile>[] = [
     {
       accessorKey: "id",
@@ -96,7 +102,8 @@ export default function DeviceDataFilesPage() {
       cell: ({ row }) => (
         <Link
           to="/deployments/$siteName/$dataFileId"
-          params={{ siteName: siteName, dataFileId: row.original.id }}
+          params={{ siteName, dataFileId: row.original.id }}
+          search={{ observationId: undefined }}
           className="text-blue-500 hover:underline"
         >
           {row.original.id}
@@ -106,10 +113,7 @@ export default function DeviceDataFilesPage() {
     {
       accessorKey: "fileName",
       header: "File Name",
-    },
-    {
-      accessorKey: "config",
-      header: "Config",
+      cell: ({ row }) => row.original.fileName,
     },
     {
       accessorKey: "sampleRate",
@@ -123,10 +127,11 @@ export default function DeviceDataFilesPage() {
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => row.original.sampleRate ? `${row.original.sampleRate} Hz` : '-',
+      cell: ({ row }) =>
+        row.original.sampleRate ? `${row.original.sampleRate} Hz` : "-",
     },
     {
-      accessorKey: "file_length",
+      accessorKey: "fileLength",
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -137,9 +142,12 @@ export default function DeviceDataFilesPage() {
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
+      cell: ({ row }) => {
+        return row.original.fileLength ? `${row.original.fileLength}` : "-";
+      },
     },
     {
-      accessorKey: "file_size",
+      accessorKey: "fileSize",
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -150,10 +158,13 @@ export default function DeviceDataFilesPage() {
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => `${bytesToMegabytes(row.original.fileSize)} MB`,   
+      cell: ({ row }) => {
+        const fileSize = row.original.fileSize;
+        return `${bytesToMegabytes(fileSize)} MB`;
+      },
     },
     {
-      accessorKey: "file_format",
+      accessorKey: "fileFormat",
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -178,7 +189,8 @@ export default function DeviceDataFilesPage() {
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => row.original.qualityScore ? `${row.original.qualityScore}/100` : '-',
+      cell: ({ row }) =>
+        row.original.qualityScore ? `${row.original.qualityScore}/100` : "-",
     },
     {
       id: "actions",
@@ -186,13 +198,11 @@ export default function DeviceDataFilesPage() {
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <AudioPlayer
-            deviceId={siteName}
-            fileId={row.original.id}
+            fileId={row.original.id.toString()}
             fileFormat={row.original.fileFormat}
           />
           <DownloadButton
-            deviceId={siteName}
-            fileId={row.original.id}
+            fileId={row.original.id.toString()}
             fileFormat={row.original.fileFormat}
           />
         </div>
@@ -200,16 +210,81 @@ export default function DeviceDataFilesPage() {
     },
   ];
 
-  // Table state and instance for sorting and rendering
-  const [sorting, setSorting] = useState<SortingState>([]);
+  // Table instance
   const table = useReactTable({
-    data: dataFiles,
+    data: filteredDataFiles,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
+
+  // Function to handle data received from DateForm
+  const handleDataFromDateForm = (newData: DataFile[]) => {
+    setFilteredDataFiles(newData);
+  };
+
+  // Early returns after all hooks are called
+  if (!authTokens) {
+    return <p>Loading authentication...</p>;
+  }
+
+  if (isLoading) {
+    return <p>Loading data files...</p>;
+  }
+
+  if (error) {
+    return <p>Error: {(error as Error).message}</p>;
+  }
+
+  if (!filteredDataFiles.length) {
+    return <p>No data files found</p>;
+  }
+
+  const handleBulkQualityCheck = async () => {
+    if (!authTokens?.access) return;
+
+    try {
+      // Get the deployment ID from the first data file
+      const deploymentId = filteredDataFiles[0]?.deployment;
+      if (!deploymentId) {
+        alert("No deployment found for this device");
+        return;
+      }
+
+      // Call the bulk quality check endpoint
+      const response = await fetch(
+        `/api/deployment/${deploymentId}/check_quality_bulk/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authTokens.access}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || "Failed to start bulk quality check"
+        );
+      }
+
+      const result = await response.json();
+      alert(`Started quality check for ${result.total_files} files`);
+
+      // Refetch data after a short delay to show updated status
+      setTimeout(() => {}, 2000);
+    } catch (error: any) {
+      console.error("Error starting bulk quality check:", error);
+      alert(
+        error?.message ||
+          "Failed to start bulk quality check. Please try again."
+      );
+    }
+  };
 
   return (
     <div className="container mx-auto py-10">
