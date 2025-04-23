@@ -390,11 +390,11 @@ class Deployment(BaseModel):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, related_name="owned_deployments",
                               on_delete=models.SET_NULL, null=True)
     managers = models.ManyToManyField(
-        settings.AUTH_USER_MODEL, blank=True, related_name="managed_deployments", null=True)
+        settings.AUTH_USER_MODEL, blank=True, related_name="managed_deployments")
     viewers = models.ManyToManyField(
-        settings.AUTH_USER_MODEL, blank=True, related_name="viewable_deployments", null=True)
+        settings.AUTH_USER_MODEL, blank=True, related_name="viewable_deployments")
     annotators = models.ManyToManyField(
-        settings.AUTH_USER_MODEL, blank=True, related_name="annotatable_deployments", null=True)
+        settings.AUTH_USER_MODEL, blank=True, related_name="annotatable_deployments")
 
     combo_project = models.CharField(
         max_length=100, blank=True, null=True, editable=False)
@@ -438,40 +438,20 @@ class Deployment(BaseModel):
         super().clean()
 
     def save(self, *args, **kwargs):
-<<<<<<< HEAD
-        # Use device_ID if available, otherwise use deployment_ID as fallback
-=======
-
->>>>>>> 2f69a7ea47bfbf5f8285b57e13186f5217600ac4
         if self.device is not None and self.device.type is not None:
-            device_id = self.device.device_ID
+            self.device_type = self.device.type
             device_type_name = self.device.type.name
-            # Update device_type to match the new device's type
-            self.device_type = self.device.type
-
-<<<<<<< HEAD
-            # Set device_n to be one more than the highest existing number for this device
-            if not self.id:  # Only for new deployments
-                max_n = Deployment.objects.filter(device=self.device).aggregate(models.Max('device_n'))['device_n__max']
-                self.device_n = 1 if max_n is None else max_n + 1
         else:
-            device_id = "NoDevice"
-            device_type_name = "NoType"
+            device_type_name = "unknown"
 
-        # Build deployment_device_ID
-        self.deployment_device_ID = f"{device_id}_{device_type_name}_{self.device_n}"
-
-        self.is_active = self.check_active()
-
-=======
-        self.deployment_device_ID = f"{self.deployment_ID}_{device_type_name}_{self.device_n}"
+        # Use device.device_ID instead of deployment_ID for the deployment_device_ID
+        if self.device is not None:
+            self.deployment_device_ID = f"{self.device.device_ID}_{device_type_name}_{self.device_n}"
+        else:
+            self.deployment_device_ID = f"{self.deployment_ID}_{device_type_name}_{self.device_n}"
 
         self.is_active = self.check_active()
 
-        if self.device is not None and self.device_type is None:
-            self.device_type = self.device.type
-
->>>>>>> 2f69a7ea47bfbf5f8285b57e13186f5217600ac4
         if self.longitude and self.latitude:
             self.point = Point(
                 float(self.longitude),

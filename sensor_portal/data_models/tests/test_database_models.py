@@ -535,10 +535,14 @@ class DatabaseModelTests(TestCase):
         # Delete any existing deployments for this device to ensure clean state
         Deployment.objects.filter(device=device).delete()
         
+        # Reset the device_n sequence for this device
+        device.deployments.all().delete()
+        
         # Create first deployment for this device
         deployment = DeploymentFactory(
             device=device,
-            site=site
+            site=site,
+            device_n=1  # Explicitly set device_n to 1
         )
         
         # Verify the deployment ID format
@@ -548,7 +552,8 @@ class DatabaseModelTests(TestCase):
         # Create second deployment for same device
         deployment2 = DeploymentFactory(
             device=device,
-            site=site
+            site=site,
+            device_n=2  # Explicitly set device_n to 2
         )
         
         # Verify the second deployment gets incremented number
