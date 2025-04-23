@@ -19,13 +19,14 @@ import {
 import { TbArrowsUpDown } from "react-icons/tb";
 import { Link } from "@tanstack/react-router";
 import { Route } from ".";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import AuthContext from "@/auth/AuthContext";
 import DownloadButton from "@/components/DownloadButton/DownloadButton";
 import AudioPlayer from "@/components/AudioPlayer/AudioPlayer";
 import { bytesToMegabytes } from "@/utils/convertion";
 import UploadButton from "@/components/UploadButton/UploadButton";
 import { useQuery } from "@tanstack/react-query";
+import DateForm from "@/components/AudioQuality/DateForm";
 
 export default function DeviceDataFilesPage() {
   const { siteName } = Route.useParams();
@@ -227,7 +228,7 @@ export default function DeviceDataFilesPage() {
 
     try {
       // Get the deployment ID from the first data file
-      const deploymentId = FilteredDataFiles[0]?.deployment;
+      const deploymentId = filteredDataFiles[0]?.deployment;
       if (!deploymentId) {
         alert("No deployment found for this device");
         return;
@@ -286,88 +287,62 @@ export default function DeviceDataFilesPage() {
     return <p>No data files found</p>;
   }
 
-  const handleBulkQualityCheck = async () => {
-    if (!authTokens?.access) return;
-
-    try {
-      // Get the deployment ID from the first data file
-      const deploymentId = filteredDataFiles[0]?.deployment;
-      if (!deploymentId) {
-        alert("No deployment found for this device");
-        return;
-      }
-
-      // Call the bulk quality check endpoint
-      const response = await fetch(
-        `/api/deployment/${deploymentId}/check_quality_bulk/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authTokens.access}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || "Failed to start bulk quality check"
-        );
-      }
-
-      const result = await response.json();
-      alert(`Started quality check for ${result.total_files} files`);
-
-      // Refetch data after a short delay to show updated status
-      setTimeout(() => {}, 2000);
-    } catch (error: any) {
-      console.error("Error starting bulk quality check:", error);
-      alert(
-        error?.message ||
-          "Failed to start bulk quality check. Please try again."
-      );
-    }
-  };
-
   return (
     <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Data Files</h1>
-        <UploadButton />
-      </div>
-    
-      <div className="rounded-md border m-5 shadow-md">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="px-0 py-0">
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-4 py-2">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      {filteredDataFiles.length > 0 && (
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold pl-5">Data Files</h1>
+          <UploadButton />
+          <Button
+            onClick={handleBulkQualityCheck}
+            className="bg-blue-500 text-white hover:bg-blue-600"
+          >
+            Check Quality for All Audio Files
+          </Button>
+        </div>
+      )}
+
+      <DateForm
+        filteredDatafiles={handleDataFromDateForm}
+        site_name={siteName}
+      />
+
+      {filteredDataFiles.length > 0 && (
+        <div className="rounded-md border m-5 shadow-md">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} className="px-0 py-0">
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="px-4 py-2">
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
