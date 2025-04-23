@@ -32,7 +32,6 @@ describe('DeploymentsPage – full E2E with real login + refresh stub', () => {
 
   it('stays logged in and loads the deployments table', function() {
     cy.visit('/deployments')
-
     cy.wait('@refreshReq')
 
     cy.window().then((win) => {
@@ -41,24 +40,29 @@ describe('DeploymentsPage – full E2E with real login + refresh stub', () => {
         throw new Error('authTokens not found in localStorage');
       }
       const { access } = JSON.parse(authTokens);
+
       cy.request({
         method: 'GET',
         url: '/api/deployment/',
         headers: { Authorization: `Bearer ${access}` }
       }).its('body').then((body) => {
+        // ←— HERE: capture the site
+        const site = body[0].site_name
+
         cy.get('table tbody tr')
           .should('have.length', body.length)
 
         cy.get('table tbody tr').first().within(() => {
-          cy.get('td').eq(0).should('contain.text', body[0].site_name)
+          cy.get('td').eq(0).should('contain.text', site)
           cy.get('td').eq(1).should('contain.text', body[0].deployment_ID)
         })
-        cy.get('table tbody tr')
-        .first()
-        .find('a')
-        .click()
 
-        cy.url().should('include', `/deployments/${body[0].site_name}`)
+        cy.get('table tbody tr')
+          .first()
+          .find('a')
+          .click()
+
+        cy.url().should('include', `/deployments/${site}`)
 
         cy.contains('Device Details').click()
         cy.contains('p', 'Device ID:').should('exist')
@@ -66,11 +70,44 @@ describe('DeploymentsPage – full E2E with real login + refresh stub', () => {
         cy.contains('Data Files').click()
         cy.get('table tbody tr').first().find('a').click()
         cy.contains('h1', 'Data File Details').should('exist')
-        
 
-  
+        // Extract file ID from URL
+        cy.url().then(url => {
+          const fileId = url.split('/').pop()
+
+          // Fetch file detail via API
+          cy.window().then(win => {
+            const { access } = JSON.parse(win.localStorage.getItem('authTokens')!)
+            cy.request({
+              method: 'GET',
+              url: `/api/datafile/${fileId}/`,
+              headers: { Authorization: `Bearer ${access}` }
+            }).its('body').then((file) => {
+              // Assert all key fields render correctly
+              cy.contains('p', `File Name:`).should('contain.text', file.file_name)
+              cy.contains('p', `File Format:`).should('contain.text', file.file_format)
+              cy.contains('p', `Sample Rate:`)
+                .should('contain.text', file.sample_rate ?? ':')
+              cy.contains('p', `File Length:`)
+                .should('contain.text', file.file_length ?? ':')
+              cy.contains('p', `Quality Score:`)
+                .should('contain.text', file.quality_score != null 
+                  ? `${file.quality_score}` 
+                  : ':')
+              cy.contains('p', `Upload Date:`)
+                .should('contain.text', new Date(file.upload_dt).toLocaleString())
+              cy.contains('p', `Recording Date:`)
+                .should('contain.text', new Date(file.recording_dt).toLocaleString())
+              cy.contains('p', `Quality Check Status:`)
+                .should('contain.text', file.quality_check_status)
+            })
+          })
+        })
+
+        cy.contains('Map').click()
+
+   
       })
     })
-
   })
 })
