@@ -40,7 +40,7 @@ type RawObservation = Omit<Observation, 'taxon'> & {
 
 export default function AllObservationsList() {
   const { authTokens } = useContext(AuthContext) as AuthContextType;
-  const { dataFileId, deviceId } = useSearch({ from: '/observations' });
+  const { dataFileId } = useSearch({ from: '/observations' });
   const [selectedObservation, setSelectedObservation] = useState<Observation | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [taxonCache, setTaxonCache] = useState<Record<number, TaxonType>>({});

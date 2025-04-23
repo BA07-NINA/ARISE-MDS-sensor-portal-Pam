@@ -16,11 +16,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-declare module "@tanstack/react-table" {
-  interface ColumnMeta<TData, TValue> {
-    className?: string;
-  }
-}
+
 import { TbArrowsUpDown } from "react-icons/tb";
 import { Deployment } from "@/types";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +28,19 @@ import { bytesToMegabytes } from "@/utils/convertion";
 import Modal from "@/components/Modal/Modal";
 import { timeSinceLastUpload } from "@/utils/timeFormat";
 import Form from "@/components/Form";
+
+declare module "@tanstack/react-table" {
+  interface ColumnMeta<TData, TValue> {
+    className?: string;
+
+    /**
+     * @internal
+     * dummy field to tie up TData & TValue so
+     * noUnusedTypeParameters won’t complain
+     */
+    __genericHolder?: [TData, TValue];
+  }
+}
 
 interface AuthContextType {
   authTokens: {

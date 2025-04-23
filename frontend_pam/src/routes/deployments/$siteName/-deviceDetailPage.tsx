@@ -4,6 +4,14 @@ import AuthContext from "@/auth/AuthContext";
 import { getData } from "@/utils/FetchFunctions";
 import { useContext } from "react";
 
+type ApiDevice = {
+  device_ID: string;
+  configuration: string;
+  sim_card_icc: string;
+  sim_card_batch: string;
+  sd_card_size: string;
+}
+
 export default function DeviceDetailPage() {
   const { siteName } = Route.useParams();
   const authContext = useContext(AuthContext) as { authTokens: { access: string } | null };
@@ -12,7 +20,7 @@ export default function DeviceDetailPage() {
   const apiURL = `devices/by_site/${siteName}/`;
 
   // Definer et fallback-objekt med tomme felter
-  const fallbackDevice = {
+  const fallbackDevice: ApiDevice = {
     device_ID: "",
     configuration: "",
     sim_card_icc: "",
@@ -20,12 +28,13 @@ export default function DeviceDetailPage() {
     sd_card_size: ""
   };
 
-  const getDeviceFunc = async () => {
+  const getDeviceFunc = async (): Promise<ApiDevice | null> => {
     if (!authTokens?.access) return null;
-    const responseJson = await getData(apiURL, authTokens.access);
-    console.log(responseJson);
-    return responseJson;
+
+    const device = await getData<ApiDevice>(apiURL, authTokens.access);
+    return device;
   };
+  
 
   const { data: device, isLoading } = useQuery({
     queryKey: [apiURL],
