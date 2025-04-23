@@ -24,22 +24,48 @@ import AuthContext from "@/auth/AuthContext";
 import { getData } from "@/utils/FetchFunctions";
 import { bytesToMegabytes } from "@/utils/convertion";
 import Modal from "@/components/Modal/Modal";
-import DeviceForm from "@/components/Form";
 import { timeSinceLastUpload } from "@/utils/timeFormat";
+import Form from "@/components/Form";
+
+interface AuthContextType {
+  authTokens: {
+    access: string;
+  } | null;
+}
+
+interface ApiDeployment {
+  deployment_ID: string;
+  deployment_start: string;
+  deployment_end: string | null;
+  folder_size: number;
+  last_upload: string;
+  site_name: string;
+  coordinate_uncertainty: string;
+  gps_device: string;
+  mic_height: string;
+  mic_direction: string;
+  habitat: string;
+  protocol_checklist: string;
+  comment: string;
+  user_email: string;
+  country: string;
+  longitude: number;
+  latitude: number;
+}
 
 export default function DeploymentsPage() {
-  const authContext = useContext(AuthContext) as any;
+  const authContext = useContext(AuthContext) as AuthContextType;
   const { authTokens } = authContext || { authTokens: null };
   const apiURL = "deployment/";
 
   const getDataFunc = async (): Promise<Deployment[]> => {
     if (!authTokens?.access) return [];
-    const response_json = await getData(apiURL, authTokens.access);
+    const response_json = await getData<ApiDeployment[]>(apiURL, authTokens.access);
 
-    const deployments: Deployment[] = response_json.map((deployment: any): Deployment => ({
+    const deployments: Deployment[] = response_json.map((deployment): Deployment => ({
       deploymentId: deployment.deployment_ID,
       startDate: deployment.deployment_start,
-      endDate: deployment.deployment_end || null, // Ensure endDate is null if not available
+      endDate: deployment.deployment_end || "",
       folderSize: deployment.folder_size,
       lastUpload: deployment.last_upload,
       batteryLevel: 0,
@@ -47,11 +73,11 @@ export default function DeploymentsPage() {
       siteName: deployment.site_name,
       coordinateUncertainty: deployment.coordinate_uncertainty,
       gpsDevice: deployment.gps_device,
-      micHeight: deployment.mic_height,
+      micHeight: parseFloat(deployment.mic_height) || 0,
       micDirection: deployment.mic_direction,
       habitat: deployment.habitat,
       protocolChecklist: deployment.protocol_checklist,
-      score: deployment,
+      score: 0,
       comment: deployment.comment,
       userEmail: deployment.user_email,
       country: deployment.country,
@@ -74,13 +100,21 @@ export default function DeploymentsPage() {
     {
       accessorKey: "siteName",
       header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="w-full justify-start">
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="w-full justify-start"
+        >
           Site
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
       cell: ({ row }) => (
-        <Link to="/deployments/$siteName" params={{ siteName: row.original.siteName }} className="text-blue-500 hover:underline">
+        <Link
+          to="/deployments/$siteName"
+          params={{ siteName: row.original.siteName }}
+          className="text-blue-500 hover:underline"
+        >
           {row.original.siteName}
         </Link>
       ),
@@ -102,7 +136,11 @@ export default function DeploymentsPage() {
     {
       accessorKey: "startDate",
       header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="w-full justify-start">
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="w-full justify-start"
+        >
           Start Date
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
@@ -112,7 +150,11 @@ export default function DeploymentsPage() {
     {
       accessorKey: "endDate",
       header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="w-full justify-start">
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="w-full justify-start"
+        >
           End Date
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
@@ -134,9 +176,13 @@ export default function DeploymentsPage() {
       cell: ({ row }) => timeSinceLastUpload(row.original.lastUpload),
     },
     {
-      accessorKey: "folder_size",
+      accessorKey: "folderSize",
       header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="w-full justify-start">
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="w-full justify-start"
+        >
           Folder Size
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
@@ -156,7 +202,9 @@ export default function DeploymentsPage() {
 
   const filteredData = useMemo(() => {
     if (selectedCountry) {
-      return data.filter((deployment) => deployment.country === selectedCountry);
+      return data.filter(
+        (deployment) => deployment.country === selectedCountry
+      );
     }
     return data;
   }, [selectedCountry, data]);
@@ -164,19 +212,21 @@ export default function DeploymentsPage() {
   // Active deployments based on filtered data
   const activeDeployments = useMemo(() => {
     return filteredData.filter(
-      (deployment) => !deployment.endDate || new Date(deployment.endDate) > new Date()
+      (deployment) =>
+        !deployment.endDate || new Date(deployment.endDate) > new Date()
     );
   }, [filteredData]);
 
   // Ended deployments based on filtered data
   const endedDeployments = useMemo(() => {
     return filteredData.filter(
-      (deployment) => deployment.endDate && new Date(deployment.endDate) <= new Date()
+      (deployment) =>
+        deployment.endDate && new Date(deployment.endDate) <= new Date()
     );
   }, [filteredData]);
 
   const activeTable = useReactTable({
-    data: activeDeployments, 
+    data: activeDeployments,
     columns,
     state: {
       sorting,
@@ -187,7 +237,7 @@ export default function DeploymentsPage() {
   });
 
   const endedTable = useReactTable({
-    data: endedDeployments, 
+    data: endedDeployments,
     columns,
     state: {
       sorting,
@@ -196,57 +246,73 @@ export default function DeploymentsPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
-
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
   const handleSave = () => closeModal();
 
+
   const toggleDropdown = () => setIsDropdownOpen((prev) => !prev);
 
   const handleCountrySelect = (country: string) => {
     setSelectedCountry(country);
-    setIsDropdownOpen(false); // Close the dropdown once a country is selected
+    setIsDropdownOpen(false);
   };
 
   return (
     <div>
-      {/* Button to toggle dropdown */}
-      <button
-        onClick={toggleDropdown}
-        className="bg-green-900 text-white py-2 px-8 rounded-lg hover:bg-green-700 transition-all"
-      >
-        {selectedCountry ? `Country: ${selectedCountry}` : "Select Country"}
-      </button>
+      <div className="flex items-center justify-end space-x-4 my-4 mr-4 relative">
+        {/* Country selector + its dropdown */}
+        <div className="relative">
+          <button
+            onClick={toggleDropdown}
+            className="bg-green-900 text-white py-2 px-8 rounded-lg hover:bg-green-700 transition-all"
+          >
+            {selectedCountry ? `Country: ${selectedCountry}` : "Select Country"}
+          </button>
 
-      {/* Dropdown menu */}
-      {isDropdownOpen && (
-        <div className="absolute mt-2 bg-white shadow-lg rounded-lg border opacity-100 z-10">
-          <ul>
-            {countries.map((country) => (
-              <li
-                key={country}
-                onClick={() => handleCountrySelect(country)}
-                className="px-4 py-2 cursor-pointer hover:bg-gray-100"
-              >
-                {country}
-              </li>
-            ))}
-          </ul>
+          {isDropdownOpen && (
+            <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-lg border z-10">
+              <ul>
+                {countries.map((country) => (
+                  <li
+                    key={country}
+                    onClick={() => handleCountrySelect(country)}
+                    className="px-4 py-2 cursor-pointer hover:bg-gray-100"
+                  >
+                    {country}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Clear selection of countries */}
-      {selectedCountry && (
+        {/* Clear selection button */}
+        {selectedCountry && (
+          <button
+            onClick={() => setSelectedCountry(null)}
+            className="bg-red-900 text-white py-2 px-8 rounded-lg hover:bg-red-700 transition-all"
+          >
+            Clear Selection
+          </button>
+        )}
+
+        {/* Add info button */}
         <button
-          onClick={() => setSelectedCountry(null)}
-          className="bg-red-900 text-white py-2 px-8 rounded-lg hover:bg-red-700 transition-all"
+          onClick={openModal}
+          className="bg-green-900 text-white py-2 px-8 rounded-lg hover:bg-green-700 transition-all"
         >
-          Clear Selection
+          Add info
         </button>
-      )}
+      </div>
 
+      {/* Modal and tables below… */}
+      <Modal isOpen={isModalOpen} onClose={closeModal}>
+        <Form onSave={handleSave} />
+      </Modal>
 
       {/* Active Deployments Table */}
       <h2 className="text-2xl font-bold mb-4">Active Deployments</h2>
@@ -259,7 +325,10 @@ export default function DeploymentsPage() {
                   <TableHead key={header.id} className="px-0 py-0">
                     {header.isPlaceholder
                       ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -290,7 +359,10 @@ export default function DeploymentsPage() {
                   <TableHead key={header.id} className="px-0 py-0">
                     {header.isPlaceholder
                       ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
