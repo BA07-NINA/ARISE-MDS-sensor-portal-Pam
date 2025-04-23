@@ -438,13 +438,18 @@ class Deployment(BaseModel):
         super().clean()
 
     def save(self, *args, **kwargs):
+<<<<<<< HEAD
         # Use device_ID if available, otherwise use deployment_ID as fallback
+=======
+
+>>>>>>> 2f69a7ea47bfbf5f8285b57e13186f5217600ac4
         if self.device is not None and self.device.type is not None:
             device_id = self.device.device_ID
             device_type_name = self.device.type.name
             # Update device_type to match the new device's type
             self.device_type = self.device.type
 
+<<<<<<< HEAD
             # Set device_n to be one more than the highest existing number for this device
             if not self.id:  # Only for new deployments
                 max_n = Deployment.objects.filter(device=self.device).aggregate(models.Max('device_n'))['device_n__max']
@@ -458,6 +463,15 @@ class Deployment(BaseModel):
 
         self.is_active = self.check_active()
 
+=======
+        self.deployment_device_ID = f"{self.deployment_ID}_{device_type_name}_{self.device_n}"
+
+        self.is_active = self.check_active()
+
+        if self.device is not None and self.device_type is None:
+            self.device_type = self.device.type
+
+>>>>>>> 2f69a7ea47bfbf5f8285b57e13186f5217600ac4
         if self.longitude and self.latitude:
             self.point = Point(
                 float(self.longitude),
@@ -524,8 +538,16 @@ class Deployment(BaseModel):
             self.thumb_url = None
 
     def get_folder_size(self, unit="MB"):
-        """Calculate the total size of all files in this deployment"""
-        return self.files.file_size(unit) if self.files.exists() else 0
+   
+        agg = self.files.aggregate(total_size=Sum('file_size'))
+        
+        total = agg['total_size'] or 0
+
+        if unit.upper() == "KB":
+            return total * 1024
+        elif unit.upper() == "GB":
+            return total / 1024
+        return total
         
     def get_last_upload(self):
         """Get the datetime of the most recent file upload for this deployment"""
