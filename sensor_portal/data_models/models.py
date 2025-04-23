@@ -27,7 +27,6 @@ from sizefield.models import FileSizeField
 from timezone_field import TimeZoneField
 from utils.general import convert_unit
 from utils.models import BaseModel
-
 from . import validators
 from .general_functions import check_dt
 
@@ -708,20 +707,15 @@ class DataFile(BaseModel):
         super().save(*args, **kwargs)
 
     def clean(self):
-        result, message = validators.deployment_start_time_after_end_time(
-            self.deployment_start, self.deployment_end
-        )
-        if not result:
-            raise ValidationError(message)
-        
-        if self.device is not None:
-            result, message = validators.deployment_check_overlap(
-                self.deployment_start, self.deployment_end, self.device, self.pk
-            )
+    
+        if self.deployment and self.recording_dt:
+            result, message = validators.data_file_in_deployment(
+                self.recording_dt, self.deployment)
             if not result:
+                from django.core.exceptions import ValidationError
                 raise ValidationError(message)
         
-        super(Deployment, self).clean()
+        super(DataFile, self).clean()
         
 @receiver(post_save, sender=DataFile)
 def post_save_file(sender, instance, created, **kwargs):
