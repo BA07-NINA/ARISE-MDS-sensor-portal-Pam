@@ -4,7 +4,6 @@ import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import { defineConfig } from "vite"
 import { configDefaults } from 'vitest/config'
 
- 
 export default defineConfig({
   plugins: [
     TanStackRouterVite({ autoCodeSplitting: true }),
@@ -16,8 +15,12 @@ export default defineConfig({
     },
   },
   server: {
-    host: '0.0.0.0',
+    host: true,
     port: 3001,
+    strictPort: true,
+    watch: {
+      usePolling: true,
+    },
   },
   test: {
     ...configDefaults,
