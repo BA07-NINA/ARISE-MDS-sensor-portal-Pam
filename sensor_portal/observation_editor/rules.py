@@ -32,19 +32,27 @@ class CanAddObservation(R):
         if initial_bool is not None:
             return initial_bool
 
-        # Check if user has annotator or manager access
+        # Make sure the user has appropriate permissions to add observations to ALL
+        # data files in the instance. If any file fails, they can't add observations.
+        # This is where the issue was - previously it returned True if any file had permission
         if instance and hasattr(instance, 'data_files') and instance.data_files.exists():
             for data_file in instance.data_files.all():
                 deployment = data_file.deployment
                 if deployment:
-                    # Check various permission paths
-                    if deployment.project.filter(annotators=user).exists() or \
-                       deployment.project.filter(managers=user).exists() or \
-                       deployment.annotators.filter(pk=user.pk).exists() or \
-                       deployment.managers.filter(pk=user.pk).exists() or \
-                       deployment.device.annotators.filter(pk=user.pk).exists() or \
-                       deployment.device.managers.filter(pk=user.pk).exists():
-                        return True
+                    # Check if the user has appropriate permissions for this data file
+                    has_permission = (
+                        deployment.project.filter(annotators=user).exists() or
+                        deployment.project.filter(managers=user).exists() or
+                        deployment.annotators.filter(pk=user.pk).exists() or
+                        deployment.managers.filter(pk=user.pk).exists() or
+                        deployment.device.annotators.filter(pk=user.pk).exists() or
+                        deployment.device.managers.filter(pk=user.pk).exists()
+                    )
+                    # If they don't have permission for this file, return False immediately
+                    if not has_permission:
+                        return False
+            # If they have permission for all files, return True
+            return True
         return False
 
     def query(self, user):
