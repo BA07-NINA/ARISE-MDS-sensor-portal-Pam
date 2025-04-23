@@ -39,7 +39,7 @@ export default function ObservationList() {
     queryKey: ['dataFile', siteName, dataFileId],
     queryFn: async () => {
       if (!siteName || !dataFileId || !authTokens?.access) return null;
-      const data = await getData(`deployments/${siteName}/datafiles/${dataFileId}`, authTokens.access);
+      const data = await getData(`datafile/${dataFileId}/`, authTokens.access);
       return data;
     },
     enabled: !!siteName && !!dataFileId && !!authTokens?.access,

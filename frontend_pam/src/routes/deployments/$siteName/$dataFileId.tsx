@@ -69,7 +69,7 @@ export const Route = createFileRoute('/deployments/$siteName/$dataFileId')({
   },
   validateSearch: (search: Record<string, unknown>) => {
     return { 
-      observationId: typeof search.observationId === 'string' ? search.observationId : undefined 
+      observationId: typeof search.observationId === 'string' ? search.observationId : undefined
     };
   }
 })
@@ -98,6 +98,7 @@ function RouteComponent() {
   const { authTokens } = authContext || { authTokens: null };
   const queryClient = useQueryClient();
   const [currentObservation, setCurrentObservation] = useState<Observation | null>(null);
+  const [siteSiteName, setSiteSiteName] = useState<string | null>(null);
 
   const apiURL = `datafile/${dataFileId}/`;
 
@@ -105,6 +106,22 @@ function RouteComponent() {
     if (!authTokens?.access) return null;
     const responseJson = await getData(apiURL, authTokens.access);
     console.log('Raw API response:', responseJson);
+    
+    // If we have a deployment ID, get deployment details to find site_name
+    if (responseJson.deployment) {
+      try {
+        const deploymentData = await getData(`deployment/${responseJson.deployment}/`, authTokens.access);
+        if (deploymentData && deploymentData.site_name) {
+          console.log('Found site_name:', deploymentData.site_name);
+          setSiteSiteName(deploymentData.site_name);
+          
+          // Store the site name in sessionStorage so other components can access it
+          sessionStorage.setItem(`site_name_for_${siteName}`, deploymentData.site_name);
+        }
+      } catch (error) {
+        console.error('Error fetching deployment details:', error);
+      }
+    }
     
     // Transform the response data
     const transformedData: DataFile = {
@@ -228,7 +245,7 @@ function RouteComponent() {
             fileId={dataFileId}
             fileFormat={dataFile.fileFormat}
           />
-          <Link to="/deployments/$siteName" params={{ siteName }}>
+          <Link to="/deployments/$siteName" params={{ siteName: siteSiteName || siteName }}>
             <Button variant="outline">Back to Deployment</Button>
           </Link>
         </div>
