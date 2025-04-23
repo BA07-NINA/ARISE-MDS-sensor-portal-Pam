@@ -6,7 +6,7 @@ import { getData } from "@/utils/FetchFunctions";
 import AuthContext from "@/auth/AuthContext";
 import ObservationEditModal from './ObservationEditModal';
 import { formatTime } from "@/utils/timeFormat";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { LuExternalLink } from "react-icons/lu";
 import { type Observation } from '@/types';
 
@@ -40,6 +40,7 @@ type RawObservation = Omit<Observation, 'taxon'> & {
 
 export default function AllObservationsList() {
   const { authTokens } = useContext(AuthContext) as AuthContextType;
+  const { dataFileId, deviceId } = useSearch({ from: '/observations' });
   const [selectedObservation, setSelectedObservation] = useState<Observation | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [taxonCache, setTaxonCache] = useState<Record<number, TaxonType>>({});
@@ -49,11 +50,19 @@ export default function AllObservationsList() {
   const queryClient = useQueryClient();
 
   const { data: observations, isLoading } = useQuery({
-    queryKey: ['all-observations', currentPage],
+    queryKey: ['all-observations', currentPage, dataFileId],
     queryFn: async () => {
       if (!authTokens?.access) return { results: [], count: 0 };
       try {
-        const data = await getData(`observation/?page=${currentPage}&page_size=${pageSize}&expand=data_files.deployment.device&include_deployment=true`, authTokens.access) as ApiResponse;
+        // Build the API URL based on whether we have a dataFileId filter
+        let apiUrl = `observation/?page=${currentPage}&page_size=${pageSize}&expand=data_files.deployment.device&include_deployment=true`;
+        
+        // If dataFileId is provided, add it to the filter
+        if (dataFileId) {
+          apiUrl += `&data_files=${dataFileId}`;
+        }
+        
+        const data = await getData(apiUrl, authTokens.access) as ApiResponse;
         
         const observations = data.results || [];
         const totalCount = data.count || 0;
@@ -142,7 +151,7 @@ export default function AllObservationsList() {
       setIsEditModalOpen(false);
 
       // Update the query cache
-      queryClient.setQueryData(['all-observations', currentPage], (oldData: QueryData | undefined) => {
+      queryClient.setQueryData(['all-observations', currentPage, dataFileId], (oldData: QueryData | undefined) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
@@ -184,7 +193,7 @@ export default function AllObservationsList() {
       }
 
       // Update the query cache
-      queryClient.setQueryData(['all-observations', currentPage], (oldData: QueryData | undefined) => {
+      queryClient.setQueryData(['all-observations', currentPage, dataFileId], (oldData: QueryData | undefined) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
