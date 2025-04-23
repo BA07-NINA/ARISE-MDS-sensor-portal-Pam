@@ -353,11 +353,17 @@ export default function AllObservationsList() {
                       {(() => {
                         const firstFile = observation.data_files?.[0];
                         if (firstFile?.deployment?.device?.id && firstFile.id) {
+                          // Get the deployment name which can be used to look up the deployment
+                          const deploymentName = firstFile.deployment.name;
+                          
+                          // Since we don't have direct access to the site_name from the data_files, 
+                          // we're using the deployment name (device ID) in the URL parameter 
+                          // and will modify $dataFileId.tsx to handle this properly
                           return (
                             <Link
                               to="/deployments/$siteName/$dataFileId"
                               params={{
-                                siteName: firstFile.deployment.name,
+                                siteName: deploymentName,
                                 dataFileId: firstFile.id.toString()
                               }}
                               search={{
