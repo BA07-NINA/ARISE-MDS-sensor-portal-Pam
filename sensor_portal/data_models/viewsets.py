@@ -678,7 +678,16 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
                      '=tag',
                      'config',
                      'sample_rate']
-    
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        site_name = self.request.query_params.get('deployment__site_name')
+        if site_name:
+            deployment = Deployment.objects.filter(site_name__iexact=site_name).first()
+            if deployment:
+                queryset = queryset.filter(deployment=deployment)
+        return queryset
+
     @action(detail=False, methods=['get'])
     def date_range(self, request):
         """
@@ -883,7 +892,7 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
                         continue
                 elif site_name:
                     try:
-                        deployment = Deployment.objects.get(site_name=site_name)
+                        deployment = Deployment.objects.get(site_name__iexact=site_name)
                     except Deployment.DoesNotExist:
                         errors.append({
                             "file": audio_file.get('file_name', 'Unknown file'),
