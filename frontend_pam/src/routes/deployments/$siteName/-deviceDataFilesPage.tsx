@@ -177,6 +177,20 @@ export default function DeviceDataFilesPage() {
       cell: ({ row }) => row.original.fileFormat,
     },
     {
+      accessorKey: "recordingDt",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="w-full justify-start"
+        >
+          Recording Date
+          <TbArrowsUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => new Date(row.original.recordingDt).toLocaleString(),
+    },
+    {
       accessorKey: "qualityScore",
       header: ({ column }) => (
         <Button
@@ -283,65 +297,63 @@ export default function DeviceDataFilesPage() {
     return <p>Error: {(error as Error).message}</p>;
   }
 
-  if (!filteredDataFiles.length) {
-    return <p>No data files found</p>;
-  }
-
   return (
     <div className="container mx-auto py-10">
-      {filteredDataFiles.length > 0 && (
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold pl-5">Data Files</h1>
-          <UploadButton />
-          <Button
-            onClick={handleBulkQualityCheck}
-            className="bg-blue-500 text-white hover:bg-blue-600"
-          >
-            Check Quality for All Audio Files
-          </Button>
-        </div>
-      )}
-
       <DateForm
         filteredDatafiles={handleDataFromDateForm}
         site_name={siteName}
       />
 
-      {filteredDataFiles.length > 0 && (
-        <div className="rounded-md border m-5 shadow-md">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className="px-0 py-0">
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="px-4 py-2">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+      {!filteredDataFiles.length ? (
+        <p>No data files found</p>
+      ) : (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold pl-5">Data Files</h1>
+            <UploadButton />
+            <Button
+              onClick={handleBulkQualityCheck}
+              className="bg-blue-500 text-white hover:bg-blue-600"
+            >
+              Check Quality for All Audio Files
+            </Button>
+          </div>
+
+          <div className="rounded-md border m-5 shadow-md">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id} className="px-0 py-0">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="px-4 py-2">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );

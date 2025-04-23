@@ -5,52 +5,9 @@ import AuthContext from "@/auth/AuthContext";
 import { getData } from "@/utils/FetchFunctions";
 import { DataFile } from "@/types";
 
-// Helper function to format dates as MM-DD-YYYY
-const formatDate = (date: Date) => {
-  const month = `0${date.getMonth() + 1}`.slice(-2);
-  const day = `0${date.getDate()}`.slice(-2);
-  const year = date.getFullYear();
-  return `${month}-${day}-${year}`;
-};
-
-// Helper function to fetch data
-const fetchDataForDateRange = async (
-  startDate: Date,
-  endDate: Date,
-  token: string,
-  site_name: string
-) => {
-  const formattedStartDate = formatDate(startDate);
-  const formattedEndDate = formatDate(endDate);
-
-  // Using the provided getData function
-  const response = await getData(
-    `datafile/filter_by_date?start_date=${formattedStartDate}&end_date=${formattedEndDate}&site_name=${site_name}`,
-    token
-  );
-  return response; // The response is already in JSON format
-};
-
-// Helper function to fetch date range
-const fetchDateRange = async (token: string, site_name: string) => {
-  const response = await getData(
-    `datafile/date_range?site_name=${site_name}`,
-    token
-  );
-  return response;
-};
-
-interface AuthContextType {
-  user: {
-    username: string;
-    email: string;
-  } | null;
-  authTokens: {
-    access: string;
-    refresh: string;
-  } | null;
-  loginUser: (username: string, password: string) => Promise<void>;
-  logoutUser: () => void;
+interface DateRangeResponse {
+  first_date: string;
+  last_date: string;
 }
 
 interface DatafileProps {
@@ -62,26 +19,27 @@ const DateForm: React.FC<DatafileProps> = ({
   filteredDatafiles,
   site_name,
 }) => {
-  const authContext = useContext(AuthContext) as AuthContextType;
+  const authContext = useContext(AuthContext);
   const { authTokens } = authContext || { authTokens: null };
   
-  // Query to get the date range
   const { data: dateRange } = useQuery({
     queryKey: ["dateRange", site_name],
-    queryFn: () => {
+    queryFn: async () => {
       if (!authTokens?.access) {
         throw new Error('No access token available');
       }
-      return fetchDateRange(authTokens.access, site_name);
+      const response = await getData<DateRangeResponse>(
+        `datafile/date_range?site_name=${site_name}`,
+        authTokens.access
+      );
+      return response as unknown as DateRangeResponse;
     },
     enabled: !!authTokens?.access,
   });
 
-  // State to store the start and end dates with default values from the system
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
-  // Set default dates when dateRange is available
   useEffect(() => {
     if (dateRange?.first_date && dateRange?.last_date) {
       setStartDate(new Date(dateRange.first_date));
@@ -89,19 +47,46 @@ const DateForm: React.FC<DatafileProps> = ({
     }
   }, [dateRange]);
 
-  // TanStack Query: useQuery hook to fetch data based on the selected dates
   const { data, error, isLoading, isError } = useQuery<DataFile[]>({
     queryKey: ["datafile", startDate, endDate],
-    queryFn: () => {
-      if (startDate && endDate && authTokens?.access) {
-        return fetchDataForDateRange(
-          startDate,
-          endDate,
-          authTokens.access,
-          site_name
-        );
-      }
-      return Promise.resolve(null);
+    queryFn: async () => {
+      if (!startDate || !endDate || !authTokens?.access) return [];
+      
+      // Format dates with leading zeros
+      const formattedStartDate = `${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}-${startDate.getFullYear()}`;
+      const formattedEndDate = `${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}-${endDate.getFullYear()}`;
+
+      const response = await getData<any[]>(
+        `datafile/filter_by_date?start_date=${formattedStartDate}&end_date=${formattedEndDate}&site_name=${site_name}`,
+        authTokens.access
+      );
+
+      // Transform the response data to match the DataFile type
+      const files = Array.isArray(response) ? response : [];
+      return files.map((file: any) => ({
+        id: file.id.toString(),
+        deployment: file.deployment.toString(),
+        fileName: file.file_name,
+        fileFormat: file.file_format,
+        fileSize: file.file_size || 0,
+        fileType: file.file_type,
+        path: file.path,
+        localPath: file.local_path,
+        uploadDt: file.upload_dt,
+        recordingDt: file.recording_datetime,
+        config: file.config ? JSON.parse(file.config) : null,
+        sampleRate: file.sample_rate || null,
+        fileLength: file.file_length || null,
+        qualityScore: file.quality_score,
+        qualityIssues: file.quality_issues || [],
+        qualityCheckDt: file.quality_check_dt,
+        qualityCheckStatus: file.quality_check_status,
+        extraData: file.extra_data || null,
+        thumbUrl: file.thumb_url || null,
+        localStorage: false,
+        archived: false,
+        favourite: file.is_favourite || false
+      }));
     },
     enabled: !!startDate && !!endDate && !!authTokens?.access,
   });
@@ -112,36 +97,21 @@ const DateForm: React.FC<DatafileProps> = ({
     }
   }, [data, filteredDatafiles]);
 
+  if (isLoading) return <div>Loading...</div>;
+  if (isError) return <div>Error: {(error as Error).message}</div>;
+
   return (
     <div className="flex space-x-4 items-center pl-5">
-      {/* Start Date Picker */}
       <DatePicker
         value={startDate}
         onChange={setStartDate}
         label="Pick start date"
       />
-      <br />
-
-      {/* End Date Picker */}
-      <DatePicker value={endDate} onChange={setEndDate} label="Pick end date" />
-      <br />
-
-      {/* Error Message */}
-      {isError && (
-        <div className="text-red-500 mt-2">{(error as Error).message}</div>
-      )}
-
-      {/* Success Message */}
-      {data && !isError && !isLoading && (
-        <div className="text-green-500 mt-2">Data fetched successfully!</div>
-      )}
-
-      {/* Optional: You can add a fallback component or message to render when nothing is available */}
-      {!data && !isLoading && !isError && (
-        <div className="text-gray-500 mt-2">
-          Pick a timeframe to get datafiles from.
-        </div>
-      )}
+      <DatePicker
+        value={endDate}
+        onChange={setEndDate}
+        label="Pick end date"
+      />
     </div>
   );
 };
