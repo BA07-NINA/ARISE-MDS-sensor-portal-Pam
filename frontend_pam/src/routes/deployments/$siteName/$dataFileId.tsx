@@ -114,6 +114,9 @@ function RouteComponent() {
         if (deploymentData && deploymentData.site_name) {
           console.log('Found site_name:', deploymentData.site_name);
           setSiteSiteName(deploymentData.site_name);
+          
+          // Store the site name in sessionStorage so other components can access it
+          sessionStorage.setItem(`site_name_for_${siteName}`, deploymentData.site_name);
         }
       } catch (error) {
         console.error('Error fetching deployment details:', error);
