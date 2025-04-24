@@ -90,7 +90,7 @@ const AudioQualityCard: React.FC<AudioQualityCardProps> = ({ dataFile, deviceId,
     return (
       <div className="mt-6">
         <h4 className="text-sm font-semibold text-gray-600 mb-4">Temporal Evolution</h4>
-        <div className="h-[500px]">
+        <div className="h-[300px] md:h-[500px]">
           <Line
             data={{
               labels: temporalData.times.map((t: number) => t.toFixed(1) + 's'),
@@ -165,10 +165,10 @@ const AudioQualityCard: React.FC<AudioQualityCardProps> = ({ dataFile, deviceId,
             {dataFile.qualityCheckStatus === 'in_progress' ? 'Checking...' : 'Check Quality'}
           </Button>
           <Link 
-            to="/observations"
-            search={{
-              deviceId: deviceId,
-              dataFileId: dataFile.id
+            to="/deployments/$siteName/$dataFileId/observations"
+            params={{
+              siteName: deviceId,
+              dataFileId: dataFile.id.toString()
             }}
             className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2"
           >
@@ -177,7 +177,8 @@ const AudioQualityCard: React.FC<AudioQualityCardProps> = ({ dataFile, deviceId,
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+      {/* Adjust grid columns to stack on small screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
         <div className="text-sm">
           <span className="font-semibold">Sample Rate:</span>
           <div className="mt-1">{dataFile.sampleRate ? `${dataFile.sampleRate} Hz` : 'Not available'}</div>
@@ -192,7 +193,8 @@ const AudioQualityCard: React.FC<AudioQualityCardProps> = ({ dataFile, deviceId,
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Responsive grid for quality score and status */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className={`p-4 rounded-lg ${getQualityColor(dataFile.qualityScore)}`}>
           <div className="text-sm text-gray-600">Quality Score</div>
           <div className="text-2xl font-bold">
@@ -234,7 +236,7 @@ const AudioQualityCard: React.FC<AudioQualityCardProps> = ({ dataFile, deviceId,
       {dataFile.extraData?.quality_metrics && (
         <div className="mt-6">
           <h4 className="text-sm font-semibold text-gray-600 mb-2">Detailed Metrics:</h4>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {Object.entries(dataFile.extraData.quality_metrics).map(([key, value]) => (
               <div key={key} className="bg-gray-50 p-3 rounded">
                 <div className="text-xs text-gray-500">{key.replace(/_/g, ' ').toUpperCase()}</div>
@@ -256,4 +258,4 @@ const AudioQualityCard: React.FC<AudioQualityCardProps> = ({ dataFile, deviceId,
   );
 };
 
-export default AudioQualityCard; 
+export default AudioQualityCard;
