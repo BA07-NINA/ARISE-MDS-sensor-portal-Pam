@@ -46,7 +46,7 @@ describe('DeploymentsPage – full E2E with real login + refresh stub', () => {
         url: '/api/deployment/',
         headers: { Authorization: `Bearer ${access}` }
       }).its('body').then((body) => {
-        // ←— HERE: capture the site
+
         const site = body[0].site_name
 
         cy.get('table tbody tr')
@@ -75,7 +75,6 @@ describe('DeploymentsPage – full E2E with real login + refresh stub', () => {
         cy.url().then(url => {
           const fileId = url.split('/').pop()
 
-          // Fetch file detail via API
           cy.window().then(win => {
             const { access } = JSON.parse(win.localStorage.getItem('authTokens')!)
             cy.request({
@@ -100,7 +99,28 @@ describe('DeploymentsPage – full E2E with real login + refresh stub', () => {
                 .should('contain.text', new Date(file.recording_dt).toLocaleString())
               cy.contains('p', `Quality Check Status:`)
                 .should('contain.text', file.quality_check_status)
-            })
+              
+              cy.intercept('POST', `/api/datafile/${fileId}/check_quality/`)
+              .as('checkQuality')
+              
+              cy.contains('Check Quality').click()
+              
+              cy.wait('@checkQuality')
+                .its('response.statusCode')
+                .should('eq', 200)
+            
+                cy.reload()
+
+              cy.contains('p', 'Quality Check Status:')
+                .should('not.contain.text', 'Not checked')
+              
+              cy.reload()
+            
+              cy.contains('p', 'Quality Check Status:')
+                .should('contain.text', 'completed')
+                .and('not.contain.text', 'pending') 
+
+    
           })
         })
 
@@ -110,4 +130,5 @@ describe('DeploymentsPage – full E2E with real login + refresh stub', () => {
       })
     })
   })
+})
 })
