@@ -122,8 +122,6 @@ export default function Form({ onSave }: FormProps) {
           protocol_checklist:     values.protocolChecklist,
           user_email:             values.email,
           comment:                values.comment,
-          // only include device_ID if provided
-          ...(values.deviceId?.trim() && { device_ID: values.deviceId }),
         };
         const deploymentJson = await postData(
           "deployment/upsert_deployment/",
@@ -162,7 +160,7 @@ export default function Form({ onSave }: FormProps) {
         {/* Device Information Section */}
         <section className="space-y-6">
           <h2 className="text-lg font-semibold">Device Information</h2>
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Column 1 */}
             <div className="space-y-4">
               <div className="space-y-2">
@@ -241,7 +239,7 @@ export default function Form({ onSave }: FormProps) {
         {/* Deployment Information Section */}
         <section className="space-y-6 mt-10">
           <h2 className="text-lg font-semibold">Deployment Information</h2>
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Column 1 */}
             <div className="space-y-4">
               <div className="space-y-2">

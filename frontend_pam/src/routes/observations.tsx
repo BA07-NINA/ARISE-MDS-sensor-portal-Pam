@@ -3,6 +3,12 @@ import AllObservationsList from '@/components/Observations/AllObservationsList';
 
 export const Route = createFileRoute('/observations')({
   component: ObservationsPage,
+  validateSearch: (search: Record<string, unknown>) => {
+    return { 
+      dataFileId: typeof search.dataFileId === 'string' ? search.dataFileId : undefined,
+      deviceId: typeof search.deviceId === 'string' ? search.deviceId : undefined
+    };
+  }
 });
 
 function ObservationsPage() {
