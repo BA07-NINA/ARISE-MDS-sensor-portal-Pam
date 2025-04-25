@@ -15,6 +15,8 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
+
+
 import { TbArrowsUpDown } from "react-icons/tb";
 import { Deployment } from "@/types";
 import { useQuery } from "@tanstack/react-query";
@@ -26,6 +28,19 @@ import { bytesToMegabytes } from "@/utils/convertion";
 import Modal from "@/components/Modal/Modal";
 import { timeSinceLastUpload } from "@/utils/timeFormat";
 import Form from "@/components/Form";
+
+declare module "@tanstack/react-table" {
+  interface ColumnMeta<TData, TValue> {
+    className?: string;
+
+    /**
+     * @internal
+     * dummy field to tie up TData & TValue so
+     * noUnusedTypeParameters won’t complain
+     */
+    __genericHolder?: [TData, TValue];
+  }
+}
 
 interface AuthContextType {
   authTokens: {
@@ -135,6 +150,7 @@ export default function DeploymentsPage() {
     },
     {
       accessorKey: "startDate",
+      meta: { className: "hidden md:table-cell" },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -149,6 +165,7 @@ export default function DeploymentsPage() {
     },
     {
       accessorKey: "endDate",
+      meta: { className: "hidden md:table-cell" },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -163,6 +180,7 @@ export default function DeploymentsPage() {
     },
     {
       accessorKey: "lastUpload",
+      meta: { className: "hidden md:table-cell" },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -177,6 +195,7 @@ export default function DeploymentsPage() {
     },
     {
       accessorKey: "folderSize",
+      meta: { className: "hidden md:table-cell" },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -322,7 +341,7 @@ export default function DeploymentsPage() {
             {activeTable.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="px-0 py-0">
+                  <TableHead key={header.id} className={header.column.columnDef.meta?.className ?? ""}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -338,7 +357,7 @@ export default function DeploymentsPage() {
             {activeTable.getRowModel().rows.map((row) => (
               <TableRow key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-4 py-2">
+                  <TableCell key={cell.id} className={cell.column.columnDef.meta?.className ?? "px-4 py-2"}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
@@ -350,13 +369,13 @@ export default function DeploymentsPage() {
 
       {/* Ended Deployments Table */}
       <h2 className="text-2xl font-bold mb-4">Ended Deployments</h2>
-      <div className="rounded-md border m-5 shadow-md">
+      <div className="rounded-md border sm:m-5 mx-2 shadow-md">
         <Table>
           <TableHeader>
             {endedTable.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="px-0 py-0">
+                  <TableHead key={header.id} className={header.column.columnDef.meta?.className ?? ""}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -372,7 +391,7 @@ export default function DeploymentsPage() {
             {endedTable.getRowModel().rows.map((row) => (
               <TableRow key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-4 py-2">
+                  <TableCell key={cell.id} className={cell.column.columnDef.meta?.className ?? "px-4 py-2"}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
