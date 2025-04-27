@@ -21,7 +21,8 @@ vi.stubGlobal('fetch', vi.fn(() =>
 
 // Stub URL.createObjectURL so it returns a dummy URL.
 vi.stubGlobal('URL', {
-  createObjectURL: vi.fn(() => 'blob:dummy')
+  createObjectURL: vi.fn(() => 'blob:dummy'),
+  revokeObjectURL: vi.fn(),
 });
 
 // Override HTMLAudioElement.prototype.play() to simulate a successful play.

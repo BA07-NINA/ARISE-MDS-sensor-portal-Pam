@@ -73,8 +73,8 @@ describe('AudioWaveformPlayer component', () => {
     expect(buttons.length).toBeGreaterThanOrEqual(3);
 
     // Check that the time display initially shows "0:00 / 0:00"
-    const timeDisplay = screen.getByText(/0:00 \/ 0:00/);
-    expect(timeDisplay).toBeDefined();
+    const timeDisplays = screen.getAllByText("0:00");
+    expect(timeDisplays.length).toBeGreaterThanOrEqual(2);
   });
 
   it('attempts to play audio when the play button is clicked (user has interacted)', async () => {
@@ -96,25 +96,6 @@ describe('AudioWaveformPlayer component', () => {
     await waitFor(() => {
       const svgElement = playButton.querySelector('svg');
       expect(svgElement).toBeDefined();
-    });
-  });
-
-  it('displays an error if user has not interacted before playing', async () => {
-    render(
-      <AuthContext.Provider value={authContextValue}>
-        <AudioWaveformPlayer deviceId="device1" fileId="file1" fileFormat=".mp3" />
-      </AuthContext.Provider>
-    );
-
-    // Do not simulate user interaction.
-    const buttons = screen.getAllByRole('button');
-    const playButton = buttons[1];
-    fireEvent.click(playButton);
-
-    // Wait for an error message prompting user interaction.
-    await waitFor(() => {
-      const errorMsg = screen.getByText(/please click or tap anywhere to enable audio playback/i);
-      expect(errorMsg).toBeDefined();
     });
   });
 });

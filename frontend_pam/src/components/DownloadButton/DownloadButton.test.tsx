@@ -61,9 +61,10 @@ describe('DownloadButton', () => {
     fireEvent.click(screen.getByRole('button', { name: /Download/i }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/devices/123/datafiles/456/download', {
+      expect(fetch).toHaveBeenCalledWith('/api/datafile/456/download/', {
         headers: { Authorization: 'Bearer fake-token' },
       });
+    });
       expect(anchor.click).toHaveBeenCalled(); 
     });
   });
@@ -92,4 +93,3 @@ describe('DownloadButton', () => {
       );
     });
   });
-});
