@@ -3,17 +3,20 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Form from "@/components/Form";
 import AuthContext from "@/auth/AuthContext";
 
-// Spy on window.alert
+// Spy on window.alert to check if it's called correctly
+// This is a common pattern to avoid actual alert popups during tests   
 const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
 
-// Mock postData function
+// Mock postData function to always resolve with a specific value
 vi.mock("@/utils/FetchFunctions", () => ({
   postData: vi.fn().mockResolvedValue({ device_ID: "mockDevice", deployment_ID: "mockDeployment" }),
 }));
 
+//Tests for the Form component
 describe("Form component", () => {
   const mockOnSave = vi.fn();
 
+  // Helper to render the Form with auth context
   const renderForm = () => {
     const mockAuthContextValue = {
       authTokens: { access: "mockToken" },
@@ -34,12 +37,14 @@ describe("Form component", () => {
     vi.clearAllMocks();
   });
 
+  // Verify that required fields are rendered
   it("renders device and deployment fields", () => {
     renderForm();
     expect(screen.getByLabelText(/Device ID/i)).to.exist;
     expect(screen.getByLabelText(/Deployment ID/i)).to.exist;
   });
 
+  // Verify that the form submits correctly with valid data
   it("submits the form successfully with valid data", async () => {
     renderForm();
 
@@ -54,7 +59,7 @@ describe("Form component", () => {
       target: { value: "Test Site" },
     });
 
-    // Click the submit button (ensure your Form has a button with accessible name "submit")
+    // Click the submit button 
     const submitButton = screen.getByRole("button", { name: /submit/i });
     fireEvent.click(submitButton);
 

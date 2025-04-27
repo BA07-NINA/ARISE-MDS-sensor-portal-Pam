@@ -57,11 +57,13 @@ vi.stubGlobal('URL', {
   createObjectURL: vi.fn(() => 'blob:dummy')
 });
 
+//Tests for the AudioWaveformPlayer component
 describe('AudioWaveformPlayer component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  // Test that the AudioWaveformPlayer renders correctly with the auth context.
   it('renders the player UI with controls and time display', () => {
     render(
       <AuthContext.Provider value={authContextValue}>
@@ -77,6 +79,7 @@ describe('AudioWaveformPlayer component', () => {
     expect(timeDisplays.length).toBeGreaterThanOrEqual(2);
   });
 
+  // Test that the play button is rendered and can be clicked.
   it('attempts to play audio when the play button is clicked (user has interacted)', async () => {
     render(
       <AuthContext.Provider value={authContextValue}>

@@ -1,9 +1,12 @@
+// Import required functions and components
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import DeploymentNav from './DeploymentNav';
 import '@testing-library/jest-dom';
 
+// Test suite for DeploymentNav component
 describe('DeploymentNav component', () => {
+  // Verify that all tabs are rendered
   it('renders all tabs', () => {
     render(<DeploymentNav activeTab="deviceDetails" setActiveTab={() => {}} />);
     expect(screen.getByText('Site Details')).toBeInTheDocument();
@@ -12,6 +15,7 @@ describe('DeploymentNav component', () => {
     expect(screen.getByText('Map', { selector: 'span.hidden.sm\\:inline' })).toBeInTheDocument();
   });
 
+  // Verify that clicking each tab calls setActiveTab with the correct value
   it('calls setActiveTab with correct values when tabs are clicked', () => {
     const setActiveTab = vi.fn();
     render(<DeploymentNav activeTab="deviceDetails" setActiveTab={setActiveTab} />);
@@ -22,6 +26,7 @@ describe('DeploymentNav component', () => {
     fireEvent.click(screen.getByText('Site Details'));
     expect(setActiveTab).toHaveBeenCalledWith('siteDetails');
   
+    // Find the "Map" label (rendered in a span) and verify its click
     const mapSpans = screen.getAllByText('Map', { selector: 'span' });
     const mapLabel = mapSpans.find(
       (el) => el.className.includes('hidden') && el.className.includes('sm:inline')

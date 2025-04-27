@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest'
 import AudioQualityCard from './AudioQualityCard'
 import { DataFile } from '@/types'
 
-
+// Mocking the router provider and other dependencies
 vi.mock('@tanstack/react-router', async () => {
   const actual = (await vi.importActual('@tanstack/react-router')) as object
   return {
@@ -18,12 +18,15 @@ vi.mock('@tanstack/react-router', async () => {
   }
 })
 
+// Helpers to render the component with router context
 const renderWithRouter = (ui: React.ReactElement) => {
   return render(ui)
 }
 
+// Dummy handler for check quality
 const dummyOnCheckQuality = vi.fn()
 
+// Stub data file used for testing
 const baseDataFile: DataFile = {
   id: 'file1',
   qualityScore: 75,
@@ -63,7 +66,9 @@ const baseDataFile: DataFile = {
   favourite: false,
 }
 
+//Test suite for the AudioQualityCard component
 describe('AudioQualityCard component', () => {
+  // Check that the component renders without crashing
   it('renders the header and check quality button', () => {
     renderWithRouter(<AudioQualityCard dataFile={baseDataFile} onCheckQuality={dummyOnCheckQuality} deviceId={''} />)
     // Check for the card title
@@ -72,6 +77,7 @@ describe('AudioQualityCard component', () => {
     expect(screen.getByRole('button', { name: /Check Quality/i })).toBeDefined()
   })
 
+  // Verify file info grid displays correct details.
   it('renders the file info grid', () => {
     renderWithRouter(<AudioQualityCard dataFile={baseDataFile} onCheckQuality={dummyOnCheckQuality} deviceId={''} />)
     expect(screen.getByText(/44100 Hz/i)).toBeDefined()
@@ -79,24 +85,28 @@ describe('AudioQualityCard component', () => {
     expect(screen.getByText(/Default/i)).toBeDefined()
   })
 
+  // Check that the quality score and status badge are displayed correctly.
   it('renders quality score and status badge correctly', () => {
     renderWithRouter(<AudioQualityCard dataFile={baseDataFile} onCheckQuality={dummyOnCheckQuality} deviceId={''} />)
     expect(screen.getByText(/75\/100/)).toBeDefined()
     expect(screen.getByText(/Completed/)).toBeDefined()
   })
 
+  // Check that any observations provided are rendered.
   it('renders observations if provided', () => {
     renderWithRouter(<AudioQualityCard dataFile={baseDataFile} onCheckQuality={dummyOnCheckQuality} deviceId={''} />)
     expect(screen.getByText(/Observation 1/i)).toBeDefined()
     expect(screen.getByText(/Observation 2/i)).toBeDefined()
   })
 
+  // Verify quality issues are rendered.
   it('renders quality issues if provided', () => {
     renderWithRouter(<AudioQualityCard dataFile={baseDataFile} onCheckQuality={dummyOnCheckQuality} deviceId={''} />)
     expect(screen.getByText(/Issue A/i)).toBeDefined()
     expect(screen.getByText(/Issue B/i)).toBeDefined()
   })
 
+  // Check that detailed quality metrics (labels and values) are rendered.
   it('renders detailed quality metrics if provided', () => {
     renderWithRouter(<AudioQualityCard dataFile={baseDataFile} onCheckQuality={dummyOnCheckQuality} deviceId={''} />)
     expect(screen.getByText(/AVERAGE RATIO/i)).toBeDefined()
@@ -105,12 +115,14 @@ describe('AudioQualityCard component', () => {
     expect(screen.getByText(/0\.35/)).toBeDefined()
   })
 
+  // Check that the temporal evolution chart is rendered when data is provided.
   it('renders temporal evolution chart when data is provided', () => {
     renderWithRouter(<AudioQualityCard dataFile={baseDataFile} onCheckQuality={dummyOnCheckQuality} deviceId={''} />)
     const canvas = document.querySelector('canvas')
     expect(canvas).toBeDefined()
   })
 
+  // Check that the quality check datetime is rendered.
   it('renders the quality check datetime if provided', () => {
     renderWithRouter(<AudioQualityCard dataFile={baseDataFile} onCheckQuality={dummyOnCheckQuality} deviceId={''} />)
     expect(screen.getByText(/Last checked:/i)).toBeDefined()

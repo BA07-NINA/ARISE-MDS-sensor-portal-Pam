@@ -30,7 +30,10 @@ vi.stubGlobal('URL', {
 HTMLAudioElement.prototype.play = () => Promise.resolve();
 HTMLAudioElement.prototype.load = () => { };
 
+//Tests for the AudioPlayer component
 describe('AudioPlayer component', () => {
+  // Test that the play button is rendered initially
+  // and that clicking it plays the audio.
   it('renders the play button initially', () => {
     render(
       <AuthContext.Provider value={dummyAuthContext}>
@@ -45,6 +48,7 @@ describe('AudioPlayer component', () => {
     expect(button.querySelector('svg')).toBeDefined();
   });
 
+  // Test that clicking the button plays the audio and changes the icon to pause.
   it('plays audio when the button is clicked', async () => {
     render(
       <AuthContext.Provider value={dummyAuthContext}>
@@ -64,6 +68,7 @@ describe('AudioPlayer component', () => {
     });
   });
 
+  // Test that clicking the button while playing pauses the audio.
   it('pauses audio when the button is clicked while playing', async () => {
     render(
       <AuthContext.Provider value={dummyAuthContext}>
@@ -83,11 +88,11 @@ describe('AudioPlayer component', () => {
     fireEvent.click(button);
     await waitFor(() => {
       // After pause the component still renders an icon
-      // (it toggles between FaPlay and FaPause).
       expect(button.querySelector('svg')).toBeDefined();
     });
   });
 
+  
   it('displays error if fetch fails', async () => {
     // Make fetch reject to simulate a fetch failure.
     (global.fetch as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>

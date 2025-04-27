@@ -5,11 +5,10 @@ import Navbar from './Navbar';
 import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router';
 import AuthContext from '@/auth/AuthContext';  
 
-
+// Set up a basic router with Navbar in the root route
 const rootRoute = createRootRoute({
   component: () => <div><Navbar /></div>,  
 });
-
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -26,10 +25,13 @@ const router = createRouter({
 });
 
 describe('Navbar component', () => {
+  // Set up a mock user and a mock logout function
   const mockUser = { username: 'john_doe' };
   const mockLogoutUser = vi.fn();
 
+  // Test that the logout button is visible and triggers logout when confirmed
   it('shows logout button and handles logout correctly', () => {
+    // Stub confirm to always return true
     window.confirm = vi.fn(() => true); 
 
     render(
@@ -46,6 +48,7 @@ describe('Navbar component', () => {
     expect(mockLogoutUser).toHaveBeenCalledTimes(1);
   });
 
+  // Test that Navbar renders expected links/text
   it('renders links correctly', () => {
     render(
       <AuthContext.Provider value={{ user: mockUser, logoutUser: mockLogoutUser }}>

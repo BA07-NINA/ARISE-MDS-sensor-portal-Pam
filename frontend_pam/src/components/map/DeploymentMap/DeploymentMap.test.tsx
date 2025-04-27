@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import DeploymentMap from './DeploymentMap';
 import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router';
 
+// Mocks for react-leaflet and related components
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="map-container">{children}</div>
@@ -18,6 +19,7 @@ vi.mock('react-leaflet', () => ({
 }));
 
 vi.mock('@adamscybot/react-leaflet-component-marker', () => ({
+  // Render a button that acts as a marker
   Marker: ({ children, ...props }: { children: React.ReactNode; onClick?: () => void }) => (
     <button data-testid="marker" onClick={props.onClick}>
       {children}
@@ -37,7 +39,7 @@ vi.mock('../MapControlResetLocation', () => ({
   )
 }));
 
-// Updated mockDeployments with missing properties added
+// Define stub deployment data
 const mockDeployments = [
   {
     deploymentId: "1",
@@ -78,7 +80,9 @@ const router = createRouter({
   context: {},
 });
 
+//Tests for DeploymentMap component
 describe('DeploymentMap component', () => {
+  // Ensure a marker is rendered for each deployment
   it('renders markers for each deployment', async () => {
     render(<RouterProvider router={router} />);
     await screen.findByTestId('map-container');
@@ -87,6 +91,7 @@ describe('DeploymentMap component', () => {
     expect(markers.length).toBe(mockDeployments.length);
   });
 
+  // When a marker is clicked, a popup with a link is shown
   it('shows popup with link when marker is clicked', async () => {
     render(<RouterProvider router={router} />);
     await screen.findByTestId('map-container');
@@ -105,6 +110,7 @@ describe('DeploymentMap component', () => {
     expect(link).toBeInTheDocument();
   });
 
+  // Verify that the user location marker and reset button are rendered
   it('renders user location marker and reset button', async () => {
     render(<RouterProvider router={router} />);
     await screen.findByTestId('map-container');

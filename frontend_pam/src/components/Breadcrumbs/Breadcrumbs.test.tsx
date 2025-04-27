@@ -10,6 +10,7 @@ import Breadcrumbs from '../Breadcrumbs';
 import '@testing-library/jest-dom';
 import { describe, expect, it } from 'vitest';
 
+// Set up routes with Breadcrumbs in the root component
 const rootRoute = createRootRoute({
   component: () => (
     <div>
@@ -30,12 +31,15 @@ const devicesRoute = createRoute({
   component: () => <div>Deployments</div>,
 });
 
+// Create router with the defined routes
 const router = createRouter({
   routeTree: rootRoute.addChildren([indexRoute, devicesRoute]),
   defaultPreload: false,
 });
 
+//Tests for Breadcrumbs component
 describe('Breadcrumbs component', () => {
+  // Check that the "Overview" link is present in the sidebar
   it('renders "Overview" as heading when at root "/"', async () => {
     render(<RouterProvider router={router} />);
     
@@ -51,6 +55,7 @@ describe('Breadcrumbs component', () => {
     expect(overviewLink).toBeInTheDocument();
   });
 
+  // Test for nested breadcrumbs on "/deployments"
   it('renders nested breadcrumbs correctly for "/deployments"', async () => {
     render(<RouterProvider router={router} />);
     

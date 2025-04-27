@@ -4,8 +4,10 @@ import AuthContext from '@/auth/AuthContext';
 import { vi, describe, it, expect } from 'vitest';
 import '@testing-library/jest-dom';
 
+// Mock the AuthContext to provide a fake token for testing
 const mockClick = vi.fn();
 
+// Mock URL.createObjectURL and URL.revokeObjectURL
 Object.defineProperty(window, 'URL', {
   value: {
     createObjectURL: vi.fn(() => 'blob:http://localhost/blobid'),
@@ -13,8 +15,8 @@ Object.defineProperty(window, 'URL', {
   },
 });
 
+// Override document.createElement to return our custom anchor with a mock click handler
 const originalCreateElement = document.createElement;
-
 const anchor = originalCreateElement.call(document, 'a'); 
 anchor.click = mockClick; 
 
@@ -23,17 +25,19 @@ document.createElement = vi.fn((element) => {
   return originalCreateElement.call(document, element);
 });
 
-
+// Stub fetch to be used by the download logic
 global.fetch = vi.fn();
 
-
+// Mock authentication context
 const mockAuthContext = {
   authTokens: {
     access: 'fake-token',
   },
 };
 
+//Test suite for the DownloadButton component
 describe('DownloadButton', () => {
+  // Test that the button renders
   it('renders the download button', () => {
     render(
       <AuthContext.Provider value={mockAuthContext}>
@@ -44,6 +48,7 @@ describe('DownloadButton', () => {
     expect(screen.getByRole('button', { name: /Download/i })).toBeInTheDocument();
   });
 
+  // Test a successful download by mocking fetch and checking that the anchor click is triggered
   it('downloads a file successfully', async () => {
     const mockBlob = new Blob(['test content'], { type: 'audio/mp3' });
 
@@ -69,6 +74,7 @@ describe('DownloadButton', () => {
     });
   });
 
+  // Test handling of a download error by ensuring an alert is shown
   it('handles download error gracefully', async () => {
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
