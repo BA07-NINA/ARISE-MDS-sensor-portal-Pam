@@ -51,7 +51,7 @@ function RouteComponent() {
     if (!authTokens?.access) return [];
     const response = await getData<ApiDeployment[]>(apiURL, authTokens.access);
     const deploymentsData = Array.isArray(response) ? response : [];
-  
+
     const deployments: Deployment[] = deploymentsData.map((deployment: ApiDeployment): Deployment => ({
       deploymentId: deployment.deployment_ID,
       startDate: deployment.deployment_start,

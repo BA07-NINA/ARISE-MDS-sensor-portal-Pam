@@ -18,6 +18,29 @@ interface AuthContextType {
     } | null;
 }
 
+/** The raw shape our backend returns */
+type ApiDeployment = {
+    deployment_ID: string;
+    deployment_start: string;
+    deployment_end: string | null;
+    folder_size: number;
+    last_upload: string;
+    site_name: string;
+    coordinate_uncertainty: string;
+    gps_device: string;
+    mic_height: number;
+    mic_direction: string;
+    habitat: string;
+    protocol_checklist: string;
+    comment: string;
+    user_email: string;
+    country: string;
+    longitude: number;
+    latitude: number;
+    score: number;
+  }
+  
+
 export default function DeploymentMapPage() {
     const { siteName } = Route.useParams();
     const authContext = useContext(AuthContext) as AuthContextType;
@@ -29,8 +52,7 @@ export default function DeploymentMapPage() {
             throw new Error("No access token");
         }
                     
-        const response_json = await getData(apiURL, authTokens.access);
-        console.log("respone_json site deployment map: ", response_json);
+        const response_json = await getData<ApiDeployment>(apiURL, authTokens.access);
 
         const deployment: Deployment = {
             deploymentId: response_json.deployment_ID,

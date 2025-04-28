@@ -91,7 +91,9 @@ export default function DeviceDataFilesPage() {
       header: ({ column }) => (
         <Button
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          onClick={() =>
+            column.toggleSorting(column.getIsSorted() === "asc")
+          }
           className="w-full justify-start"
         >
           ID
@@ -119,8 +121,10 @@ export default function DeviceDataFilesPage() {
       header: ({ column }) => (
         <Button
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="w-full justify-start"
+          onClick={() =>
+            column.toggleSorting(column.getIsSorted() === "asc")
+          }
+          className="w-full justify-start hidden md:flex"
         >
           Sample Rate
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
@@ -128,21 +132,28 @@ export default function DeviceDataFilesPage() {
       ),
       cell: ({ row }) =>
         row.original.sampleRate ? `${row.original.sampleRate} Hz` : "-",
+      meta: {
+        className: "hidden md:table-cell",
+      },
     },
     {
       accessorKey: "fileLength",
       header: ({ column }) => (
         <Button
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="w-full justify-start"
+          onClick={() =>
+            column.toggleSorting(column.getIsSorted() === "asc")
+          }
+          className="w-full justify-start hidden md:flex"
         >
           File Length
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => {
-        return row.original.fileLength ? `${row.original.fileLength}` : "-";
+      cell: ({ row }) =>
+        row.original.fileLength ? `${row.original.fileLength}` : "-",
+      meta: {
+        className: "hidden md:table-cell",
       },
     },
     {
@@ -150,16 +161,20 @@ export default function DeviceDataFilesPage() {
       header: ({ column }) => (
         <Button
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="w-full justify-start"
+          onClick={() =>
+            column.toggleSorting(column.getIsSorted() === "asc")
+          }
+          className="w-full justify-start hidden lg:flex"
         >
           File Size (MB)
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => {
-        const fileSize = row.original.fileSize;
-        return `${bytesToMegabytes(fileSize)} MB`;
+
+      cell: ({ row }) =>
+        `${bytesToMegabytes(row.original.fileSize)} MB`,
+      meta: {
+        className: "hidden lg:table-cell",
       },
     },
     {
@@ -167,14 +182,19 @@ export default function DeviceDataFilesPage() {
       header: ({ column }) => (
         <Button
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="w-full justify-start"
+          onClick={() =>
+            column.toggleSorting(column.getIsSorted() === "asc")
+          }
+          className="w-full justify-start hidden lg:flex"
         >
-          File format
+          File Format
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
       cell: ({ row }) => row.original.fileFormat,
+      meta: {
+        className: "hidden lg:table-cell",
+      },
     },
     {
       accessorKey: "recordingDt",
@@ -195,8 +215,10 @@ export default function DeviceDataFilesPage() {
       header: ({ column }) => (
         <Button
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="w-full justify-start"
+          onClick={() =>
+            column.toggleSorting(column.getIsSorted() === "asc")
+          }
+          className="w-full justify-start hidden lg:flex"
         >
           Quality Score
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
@@ -204,6 +226,9 @@ export default function DeviceDataFilesPage() {
       ),
       cell: ({ row }) =>
         row.original.qualityScore ? `${row.original.qualityScore}/100` : "-",
+      meta: {
+        className: "hidden lg:table-cell",
+      },
     },
     {
       id: "actions",
@@ -241,14 +266,13 @@ export default function DeviceDataFilesPage() {
     if (!authTokens?.access) return;
 
     try {
-      // Get the deployment ID from the first data file
       const deploymentId = filteredDataFiles[0]?.deployment;
+
       if (!deploymentId) {
         alert("No deployment found for this device");
         return;
       }
 
-      // Call the bulk quality check endpoint
       const response = await fetch(
         `/api/deployment/${deploymentId}/check_quality_bulk/`,
         {
@@ -270,16 +294,17 @@ export default function DeviceDataFilesPage() {
       const result = await response.json();
       alert(`Started quality check for ${result.total_files} files`);
 
-      // Refetch data after a short delay to show updated status
       setTimeout(() => {}, 2000);
     } catch (error: unknown) {
       console.error("Error starting bulk quality check:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to start bulk quality check. Please try again.";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to start bulk quality check. Please try again.";
       alert(errorMessage);
     }
   };
 
-  // Function to handle data received from DateForm
   const handleDataFromDateForm = (newData: DataFile[]) => {
     setFilteredDataFiles(newData);
   };
@@ -321,36 +346,42 @@ export default function DeviceDataFilesPage() {
 
           <div className="rounded-md border m-5 shadow-md">
             <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} className="px-0 py-0">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      className={header.column.columnDef.meta?.className ?? "px-0 py-0"}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
               <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="px-4 py-2">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      className={cell.column.columnDef.meta?.className ?? "px-4 py-2"}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
             </Table>
           </div>
         </>

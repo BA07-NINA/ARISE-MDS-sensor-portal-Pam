@@ -14,7 +14,7 @@ export type Device = {
 export type Deployment = {
     deploymentId: string;
     startDate: string;
-    endDate: string;
+    endDate: string | null;
     lastUpload: string;
     batteryLevel: number;
     siteName: string;
