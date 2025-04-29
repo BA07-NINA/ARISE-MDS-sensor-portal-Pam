@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Route } from '@/routes/deployments/$siteName';
@@ -33,57 +33,81 @@ export default function UploadButton() {
   };
 
   const handleDateConfirm = () => {
+    if (!selectedDate) {
+      setError('Please select a date');
+      return;
+    }
+  
     const date = new Date(selectedDate);
-    if (!isNaN(date.getTime())) {
-      const updatedFiles = [...files];
-      updatedFiles[currentFileIndex] = {
-        ...updatedFiles[currentFileIndex],
-        recordingDate: date
-      };
+    if (isNaN(date.getTime())) {
+      setError('Please select a valid date');
+      return;
+    }
+  
+    // Update files directly and proceed safely
+    const updatedFiles = [...files];
+    updatedFiles[currentFileIndex] = {
+      ...updatedFiles[currentFileIndex],
+      recordingDate: date,
+    };
+  
+    if (currentFileIndex < files.length - 1) {
+      setFiles(updatedFiles);
+      setCurrentFileIndex(currentFileIndex + 1);
+      setSelectedDate('');
+      setIsDateDialogOpen(true);
+    } else {
+      // Only update state and call upload with the latest data
       setFiles(updatedFiles);
       setIsDateDialogOpen(false);
-
-      if (currentFileIndex < files.length - 1) {
-        setCurrentFileIndex(currentFileIndex + 1);
-        setIsDateDialogOpen(true);
-      } else {
-        handleUpload();
-      }
+  
+      // Use a microtask to ensure state updates flush
+      setTimeout(() => handleUpload(updatedFiles), 0);
     }
   };
 
-  const handleUpload = async () => {
+  const handleDateCancel = () => {
+    setIsDateDialogOpen(false);
+    setFiles([]);
+    setCurrentFileIndex(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleUpload = async (uploadFiles: FileWithId[] = files) => {
     if (!siteName) {
       setError('No site name found in URL');
       return;
     }
-
+  
     const formData = new FormData();
-    const audioFiles = files.map(fileWithId => ({
+    const audioFiles = uploadFiles.map(fileWithId => ({
       file_name: fileWithId.file.name,
       fileSize: fileWithId.file.size,
-      recording_dt: fileWithId.recordingDate?.toISOString(),
+      recording_dt: fileWithId.recordingDate ? fileWithId.recordingDate.toISOString().split('T')[0] : null,
       path: '/usr/src/proj_tabmon_NINA',
       local_path: '',
-      file_format: fileWithId.file.name.split('.').pop()
+      file_format: fileWithId.file.name.split('.').pop(),
     }));
-
+  
     formData.append('audioFiles', JSON.stringify(audioFiles));
     formData.append('site_name', siteName);
-    files.forEach(fileWithId => {
+  
+    uploadFiles.forEach(fileWithId => {
       formData.append('files', fileWithId.file);
     });
-
+  
     try {
       const authTokens = JSON.parse(sessionStorage.getItem("authTokens") || "{}");
       const response = await fetch('/api/datafile/register_audio_files/', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${authTokens.access}`
+          'Authorization': `Bearer ${authTokens.access}`,
         },
         body: formData,
       });
-
+  
       if (response.ok) {
         setFiles([]);
         setCurrentFileIndex(0);
@@ -131,7 +155,7 @@ export default function UploadButton() {
               className="w-full mb-4"
             />
             <div className="flex justify-end gap-2">
-              <Button onClick={() => setIsDateDialogOpen(false)} variant="outline">Cancel</Button>
+              <Button onClick={handleDateCancel} variant="outline">Cancel</Button>
               <Button onClick={handleDateConfirm}>Confirm</Button>
             </div>
           </div>

@@ -784,7 +784,7 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
         serializer = self.get_serializer(result_queryset, many=True)
         return Response(serializer.data)
         
-        
+
     @action(detail=False, methods=['get'])
     def test(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -839,7 +839,7 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
         
         if not audio_files_str:
             return Response({"error": "No audio files provided"}, 
-                          status=status.HTTP_400_BAD_REQUEST)
+                        status=status.HTTP_400_BAD_REQUEST)
         
         try:
             audio_files = json.loads(audio_files_str)
@@ -864,8 +864,8 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
                 
                 if recording_dt_str:
                     try:
-                        # Parse the datetime string
-                        recording_dt = datetime.datetime.fromisoformat(recording_dt_str.replace('Z', '+00:00'))
+                        # Parse the date string in YYYY-MM-DD format
+                        recording_dt = datetime.datetime.strptime(recording_dt_str, '%Y-%m-%d')
                         # Make it timezone-aware using the server's timezone
                         recording_dt = djtimezone.make_aware(recording_dt)
                         print(f"Parsed recording_dt: {recording_dt}")  # Debug log
