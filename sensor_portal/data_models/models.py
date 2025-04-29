@@ -707,13 +707,34 @@ class DataFile(BaseModel):
         super().save(*args, **kwargs)
 
     def clean(self):
-        # Validate that recording_dt falls within deployment's date range
-        if self.recording_dt:
+        
+        if self.deployment and self.recording_dt:
+            result, message = validators.data_file_in_deployment(
+                self.recording_dt, self.deployment)
+            if not result:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(message)
+        # Skip validation if either recording_dt or deployment is missing
+        if self.recording_dt and self.deployment:
+            # Direct validation with specific error messages
             deployment = self.deployment
             if deployment.deployment_start and self.recording_dt < deployment.deployment_start:
+                from django.core.exceptions import ValidationError
                 raise ValidationError("Recording date cannot be before deployment start date")
+            
             if deployment.deployment_end and self.recording_dt > deployment.deployment_end:
+                from django.core.exceptions import ValidationError
                 raise ValidationError("Recording date cannot be after deployment end date")
+            
+            # Also call the validator function for consistency or additional validations
+            result, message = validators.data_file_in_deployment(
+                self.recording_dt, self.deployment)
+            if not result:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(message)
+        
+        # Call parent's clean method
+        super(DataFile, self).clean()
         super().clean()
         
 @receiver(post_save, sender=DataFile)
