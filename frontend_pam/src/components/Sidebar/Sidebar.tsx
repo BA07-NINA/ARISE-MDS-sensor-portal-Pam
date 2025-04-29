@@ -11,7 +11,7 @@ function Sidebar() {
   const isObservationsActive = location.pathname.startsWith('/observations')
 
   return (
-<div className={`h-screen border-r bg-gray-50 transition-all duration-300 ${isCollapsed ? 'sm:w-16' : 'w-16 sm:w-64'}`}>
+<div data-testid="sidebar-container" className={`h-screen border-r bg-gray-50 transition-all duration-300 ${isCollapsed ? 'sm:w-16' : 'w-16 sm:w-64'}`}>
 
 
     <nav className="h-full bg-white">
