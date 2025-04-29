@@ -19,20 +19,72 @@ import {
 import { TbArrowsUpDown } from "react-icons/tb";
 import { Link } from "@tanstack/react-router";
 import { Route } from ".";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import AuthContext from "@/auth/AuthContext";
 import DownloadButton from "@/components/DownloadButton/DownloadButton";
 import AudioPlayer from "@/components/AudioPlayer/AudioPlayer";
 import { bytesToMegabytes } from "@/utils/convertion";
+import UploadButton from "@/components/UploadButton/UploadButton";
+import { useQuery } from "@tanstack/react-query";
 import DateForm from "@/components/AudioQuality/DateForm";
 
 export default function DeviceDataFilesPage() {
-  const { siteName: site_name } = Route.useParams();
+  const { siteName } = Route.useParams();
   const authContext = useContext(AuthContext) as { authTokens: { access: string } | null };
   const { authTokens } = authContext || { authTokens: null };
-  const [FilteredDataFiles, setFilteredDataFiles] = useState<DataFile[]>([]);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [filteredDataFiles, setFilteredDataFiles] = useState<DataFile[]>([]);
 
+  // Data fetching
+  const { data: dataFiles, isLoading, error } = useQuery({
+    queryKey: ['datafiles', siteName],
+    queryFn: async () => {
+      if (!authTokens?.access) return [];
+      const response = await fetch(`/api/datafile/?deployment__site_name=${siteName}`, {
+        headers: {
+          'Authorization': `Bearer ${authTokens.access}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch data files');
+      }
+      const data = await response.json();
+      return data.map((file: any) => ({
+        id: file.id.toString(),
+        deployment: file.deployment.toString(),
+        fileName: file.file_name,
+        fileFormat: file.file_format,
+        fileSize: file.file_size,
+        fileType: file.file_type,
+        path: file.path,
+        localPath: file.path,
+        uploadDt: file.upload_dt,
+        recordingDt: file.recording_datetime,
+        config: file.config,
+        sampleRate: file.sample_rate,
+        fileLength: file.file_length,
+        qualityScore: file.quality_score,
+        qualityIssues: file.quality_issues || [],
+        qualityCheckDt: file.quality_check_dt,
+        qualityCheckStatus: file.quality_check_status,
+        extraData: file.extra_data || null,
+        thumbUrl: file.thumb_url,
+        localStorage: false,
+        archived: false,
+        favourite: file.is_favourite
+      }));
+    },
+    enabled: !!authTokens?.access
+  });
+
+  // Update filtered data when dataFiles changes
+  useEffect(() => {
+    if (dataFiles) {
+      setFilteredDataFiles(dataFiles);
+    }
+  }, [dataFiles]);
+
+  // Table columns definition
   const columns: ColumnDef<DataFile>[] = [
     {
       accessorKey: "id",
@@ -50,8 +102,9 @@ export default function DeviceDataFilesPage() {
       ),
       cell: ({ row }) => (
         <Link
-          to="/deployments/$site_name/$dataFileId"
-          params={{ site_name: site_name, dataFileId: row.original.id }}
+          to="/deployments/$siteName/$dataFileId"
+          params={{ siteName, dataFileId: row.original.id }}
+          search={{ observationId: undefined }}
           className="text-blue-500 hover:underline"
         >
           {row.original.id}
@@ -61,10 +114,10 @@ export default function DeviceDataFilesPage() {
     {
       accessorKey: "fileName",
       header: "File Name",
-      cell: ({ row }) => row.original.file_name,
+      cell: ({ row }) => row.original.fileName,
     },
     {
-      accessorKey: "sample_rate",
+      accessorKey: "sampleRate",
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -78,13 +131,13 @@ export default function DeviceDataFilesPage() {
         </Button>
       ),
       cell: ({ row }) =>
-        row.original.sample_rate ? `${row.original.sample_rate} Hz` : "-",
+        row.original.sampleRate ? `${row.original.sampleRate} Hz` : "-",
       meta: {
         className: "hidden md:table-cell",
       },
     },
     {
-      accessorKey: "file_length",
+      accessorKey: "fileLength",
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -98,13 +151,13 @@ export default function DeviceDataFilesPage() {
         </Button>
       ),
       cell: ({ row }) =>
-        row.original.file_length ? `${row.original.file_length}` : "-",
+        row.original.fileLength ? `${row.original.fileLength}` : "-",
       meta: {
         className: "hidden md:table-cell",
       },
     },
     {
-      accessorKey: "file_size",
+      accessorKey: "fileSize",
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -117,14 +170,15 @@ export default function DeviceDataFilesPage() {
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
+
       cell: ({ row }) =>
-        `${bytesToMegabytes(row.original.file_size)} MB`,
+        `${bytesToMegabytes(row.original.fileSize)} MB`,
       meta: {
         className: "hidden lg:table-cell",
       },
     },
     {
-      accessorKey: "file_format",
+      accessorKey: "fileFormat",
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -137,13 +191,27 @@ export default function DeviceDataFilesPage() {
           <TbArrowsUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => row.original.file_format,
+      cell: ({ row }) => row.original.fileFormat,
       meta: {
         className: "hidden lg:table-cell",
       },
     },
     {
-      accessorKey: "quality_score",
+      accessorKey: "recordingDt",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="w-full justify-start"
+        >
+          Recording Date
+          <TbArrowsUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => new Date(row.original.recordingDt).toLocaleString(),
+    },
+    {
+      accessorKey: "qualityScore",
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -157,7 +225,7 @@ export default function DeviceDataFilesPage() {
         </Button>
       ),
       cell: ({ row }) =>
-        row.original.quality_score ? `${row.original.quality_score}/100` : "-",
+        row.original.qualityScore ? `${row.original.qualityScore}/100` : "-",
       meta: {
         className: "hidden lg:table-cell",
       },
@@ -169,19 +237,20 @@ export default function DeviceDataFilesPage() {
         <div className="flex items-center gap-2">
           <AudioPlayer
             fileId={row.original.id.toString()}
-            fileFormat={row.original.file_format}
+            fileFormat={row.original.fileFormat}
           />
           <DownloadButton
             fileId={row.original.id.toString()}
-            fileFormat={row.original.file_format}
+            fileFormat={row.original.fileFormat}
           />
         </div>
       ),
     },
   ];
 
+  // Table state and instance for sorting and rendering
   const table = useReactTable({
-    data: FilteredDataFiles,
+    data: filteredDataFiles,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -197,7 +266,8 @@ export default function DeviceDataFilesPage() {
     if (!authTokens?.access) return;
 
     try {
-      const deploymentId = FilteredDataFiles[0]?.deployment;
+      const deploymentId = filteredDataFiles[0]?.deployment;
+
       if (!deploymentId) {
         alert("No deployment found for this device");
         return;
@@ -239,28 +309,43 @@ export default function DeviceDataFilesPage() {
     setFilteredDataFiles(newData);
   };
 
+  // Early returns after all hooks are called
+  if (!authTokens) {
+    return <p>Loading authentication...</p>;
+  }
+
+  if (isLoading) {
+    return <p>Loading data files...</p>;
+  }
+
+  if (error) {
+    return <p>Error: {(error as Error).message}</p>;
+  }
+
   return (
     <div className="container mx-auto py-10">
-      {FilteredDataFiles.length > 0 && (
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold pl-5">Data Files</h1>
-          <Button
-            onClick={handleBulkQualityCheck}
-            className="bg-blue-500 text-white hover:bg-blue-600"
-          >
-            Check Quality for All Audio Files
-          </Button>
-        </div>
-      )}
-
       <DateForm
         filteredDatafiles={handleDataFromDateForm}
-        site_name={site_name}
+        site_name={siteName}
       />
 
-      {FilteredDataFiles.length > 0 && (
-        <div className="rounded-md border m-5 shadow-md overflow-x-auto">
-          <Table>
+      {!filteredDataFiles.length ? (
+        <p>No data files found</p>
+      ) : (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold pl-5">Data Files</h1>
+            <UploadButton />
+            <Button
+              onClick={handleBulkQualityCheck}
+              className="bg-blue-500 text-white hover:bg-blue-600"
+            >
+              Check Quality for All Audio Files
+            </Button>
+          </div>
+
+          <div className="rounded-md border m-5 shadow-md">
+            <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
@@ -280,7 +365,7 @@ export default function DeviceDataFilesPage() {
                 </TableRow>
               ))}
             </TableHeader>
-            <TableBody>
+              <TableBody>
               {table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
@@ -297,8 +382,9 @@ export default function DeviceDataFilesPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </div>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );

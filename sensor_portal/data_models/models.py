@@ -707,15 +707,14 @@ class DataFile(BaseModel):
         super().save(*args, **kwargs)
 
     def clean(self):
-    
-        if self.deployment and self.recording_dt:
-            result, message = validators.data_file_in_deployment(
-                self.recording_dt, self.deployment)
-            if not result:
-                from django.core.exceptions import ValidationError
-                raise ValidationError(message)
-        
-        super(DataFile, self).clean()
+        # Validate that recording_dt falls within deployment's date range
+        if self.recording_dt:
+            deployment = self.deployment
+            if deployment.deployment_start and self.recording_dt < deployment.deployment_start:
+                raise ValidationError("Recording date cannot be before deployment start date")
+            if deployment.deployment_end and self.recording_dt > deployment.deployment_end:
+                raise ValidationError("Recording date cannot be after deployment end date")
+        super().clean()
         
 @receiver(post_save, sender=DataFile)
 def post_save_file(sender, instance, created, **kwargs):
