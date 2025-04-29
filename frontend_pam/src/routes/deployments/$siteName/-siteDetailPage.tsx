@@ -92,9 +92,11 @@ export default function SiteDetailPage() {
   if (isLoading) {
     return <p>Loading deployment...</p>;
   }
+
   if (error) {
     return <p>Error: {(error as Error).message}</p>;
   }
+
   if (!deployment) {
     return <p>No deployment found</p>;
   }
