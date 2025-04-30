@@ -268,6 +268,19 @@ If you need to create new endpoints to expose data:
    docker compose -f docker-compose-dev.yml restart sensor_portal_django
    ```
 
+### Backend and Database Testing
+
+- **Datamodels tests**
+   -checks that the backend can create models in backend and database
+   -makes sure the api works appropriately
+- **observation tests**
+   -checks creation of models
+   -make sure the api endpoints related to the observations work appropriately
+
+### Running the backend tests
+```bash
+docker compose -f docker-compose-dev.yml exec sensor_portal_django pytest
+```
 
 
 ### End-to-End (E2E) Testing
