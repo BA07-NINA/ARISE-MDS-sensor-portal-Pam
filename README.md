@@ -1,6 +1,6 @@
 # ARISE-MDS Sensor Portal
  
-This is a shareable version of the ARISE-MDS sensor portal. It is currently a work in progress. This documentation will be updated when the code approaches a release. Please note this branch is very much a WIP, and there may be a risk of breaking changes occasionally.
+This shareable version of the ARISE-MDS sensor portal builds on the foundation developed by Dr. Julian Evans. This branch is currently a work in progress. 
 
 ## Contributors
 
@@ -11,6 +11,32 @@ This is a shareable version of the ARISE-MDS sensor portal. It is currently a wo
 - Noah Lund Syrdal
 - Siri Arnesen
 - Marius Bølset Gisleberg
+
+## Table of Contents
+
+- [ARISE-MDS Sensor Portal](#arise-mds-sensor-portal)
+  - [Contributors](#contributors)
+  - [Table of Contents](#table-of-contents)
+  - [Starting the project for the first time](#starting-the-project-for-the-first-time)
+    - [Init database \& super user:](#init-database--super-user)
+    - [Run migrations again](#run-migrations-again)
+  - [Audio Data Management](#audio-data-management)
+    - [Directory Structure](#directory-structure)
+    - [Importing Audio Files with Fake GCS](#importing-audio-files-with-fake-gcs)
+    - [Resulting Storage Structure](#resulting-storage-structure)
+    - [Data Relationships](#data-relationships)
+    - [Accessing Audio Files](#accessing-audio-files)
+    - [Working with Audio Files](#working-with-audio-files)
+    - [File Format Support](#file-format-support)
+    - [Filename Parsing](#filename-parsing)
+  - [Data Flow from Backend to Frontend](#data-flow-from-backend-to-frontend)
+    - [API Endpoints](#api-endpoints)
+    - [Checking API Responses](#checking-api-responses)
+    - [Debugging Data Flow Issues](#debugging-data-flow-issues)
+    - [Creating Custom API Endpoints](#creating-custom-api-endpoints)
+  - [Testing](#testing)
+    - [Backend and Database Testing](#backend-and-database-testing)
+    - [End-to-End (E2E) Testing](#end-to-end-e2e-testing)
 
 
 ## Starting the project for the first time
@@ -70,7 +96,7 @@ CREATE EXTENSION postgis;
 ```
 
 
-### then run migrations again
+### Run migrations again
 ```bash
 docker compose -f docker-compose-dev.yml exec sensor_portal_django python manage.py migrate
 ```
@@ -268,16 +294,17 @@ If you need to create new endpoints to expose data:
    docker compose -f docker-compose-dev.yml restart sensor_portal_django
    ```
 
+## Testing
 ### Backend and Database Testing
 
-- **Datamodels tests**
-   - checks that the backend can create models in backend and database
-   - makes sure the api works appropriately
-- **observation tests**
-   - checks creation of models
-   - make sure the api endpoints related to the observations work appropriately
+- **Data Model Tests**
+  - Verify that the backend can create and manage database models correctly
+  - Ensure corresponding API endpoints return expected responses
+- **Observations Tests**
+   - Validate creation of models
+   - Make sure the api endpoints related to the observations work appropriately
 
-### Running the backend tests
+**Running the backend tests**
 ```bash
 docker compose -f docker-compose-dev.yml exec sensor_portal_django pytest
 ```
@@ -305,7 +332,7 @@ E2E testing verifies that the full application works as intended in an integrate
     - Reload pages (`cy.reload()`) to confirm the app preserves state correctly
     - Check that data remains consistent after navigation and actions
 
-### Running the E2E Tests
+**Running the E2E Tests**
 Before you begin, make sure the application is running as described earlier in this file. Then run: 
 
 ```bash
@@ -313,4 +340,5 @@ npm install
 npx cypress open
 ```
 
-This will launch Cypress’s test runner, where you can select and execute the “DeploymentsPage” spec (or any other E2E suite) in your browser.
+This will launch Cypress’s test runner, where you can select and execute the “DeploymentsPage” spec.
+
