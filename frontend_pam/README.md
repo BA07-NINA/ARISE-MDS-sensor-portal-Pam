@@ -1,15 +1,14 @@
 ## Table of contents
-- [PAM](#pam)
-  - [Contributors](#contributors)
-  - [Table of contents](#table-of-contents)
-  - [Environment](#environment)
-  - [Technologies](#technologies)
-    - [Frontend](#frontend)
-  - [Features](#features)
-  - [Tests](#tests)
-  - [Responsiveness](#responsiveness)
-  - [Version Control](#version-control)
-  - [Architecture](#architecture)
+- [Contributors](#contributors)
+- [Table of contents](#table-of-contents)
+- [Environment](#environment)
+- [Technologies](#technologies)
+  - [Frontend](#frontend)
+- [Features](#features)
+- [Tests](#tests)
+- [Responsiveness](#responsiveness)
+- [Version Control](#version-control)
+- [Architecture](#architecture)
 
 ## Environment
 
