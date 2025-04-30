@@ -43,17 +43,38 @@ We selected technologies that enable us to build a responsive, efficient, and sc
 
 ## Features
 
-To meet the requirements of our application, we have implemented key features that make it easy to find deployments. Users can filter, and sort deployments in ways that fit the purpose of the platform.
+To meet the requirements of the application, we have implemented several key features focused on efficient navigation, data accessibility, and user-friendly interaction. The main goal has been to make it easy for users to locate, inspect, and analyze deployments and associated data.
 
-## Legge til her når vi har ferdigstilt funksjonaliteten
 1. Deployment Discovery
     - **View lookup table of deployments**: Users are able to view a lookup table for deployments, with information about the last uploaded file.
     - **Filters**: Users can filter deployments by country and status.
     - **Sort Options**: Users can sort deployments alphabetically based on several fields.
 
+2. Deployment Detail Pages
+    - **Site and Device Information**: Each deployment has dedicated detail pages providing comprehensive information about the deployment site and the recording device used.
+    - **Navigation Integration**: From the deployment view, users can easily access related pages such as data files, observations, and maps.
+
+3. Data Files
+    - **Audio File Overview**: For each deployment, users can view a table of all associated audio files. This view includes metadata such as timestamps, file names, and other relevant attributes.
+
+4. Observations
+    - **Global Observations Page**: A centralized page lists all observations across deployments.
+    - **Contextual Observations**: Users can also view observations linked to a specific audio file directly from its associated page, allowing for a more contextual inspection of data.
+
+5. Map Integration
+    - **Global Map View**: An interactive world map displays all deployments as clickable pins. Selecting a pin allows users to navigate directly to the associated deployment.
+    - **Deployment-Specific Maps**: Within a deployment’s detail view, users can view a focused map showing only that deployment’s location.
 ## Tests
 
-We have implemented basic component tests in the frontend to ensure that the most important parts of the user interface function as expected. Using React Testing Library and Vitest, we tested key components with a focus on correct data rendering and the handling of typical user interactions and state changes.
+To ensure the stability of the most critical parts of the user interface, we implemented basic component tests in the frontend. Using React Testing Library and Vitest, we tested key components with an emphasis on correct data rendering, handling of user interactions, and state changes.
+
+The Observations components was not included in the component testing phase due to its lower priority among the functional requirements and was therefore deprioritized. However, its functionality was validated through user testing with the customer, confirming that the rendered content and results were meaningful and met expectations. For future development, we recommend implementing component tests for Observations to reduce the risk of undetected bugs and improve long-term maintainability.
+
+### How to run
+```bash
+cd frontend_pam
+npm test
+```
 
 ## Responsiveness
 This was not been a huge focus, but there are some pages that are suited to smaller devices like phones.
@@ -80,8 +101,6 @@ This workflow helps us maintain a clear and organized development process, ensur
 ## Architecture
 The project is structured to maintain a clear separation of concerns and to ensure scalability and maintainability. Here is an overview of the **key** directories and files:
 
-# Må endres når ferdig
-
 **Select directories in frontend**
 
 - `src/`: Contains the main source code for the frontend.
@@ -97,7 +116,7 @@ The project is structured to maintain a clear separation of concerns and to ensu
         - `-deviceDataFilesPage.tsx`
         - `-deviceDetailPage.tsx`
         - `-siteDetailPage.tsx`
-        - `$dataFieldTest.tsx`
+        - `$dataFieldId.tsx`
         - `index.tsx`
       - `-deploymentsPage.tsx`: Table view of all deployments
       - `index.tsx`: 
