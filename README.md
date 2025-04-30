@@ -2,6 +2,17 @@
  
 This is a shareable version of the ARISE-MDS sensor portal. It is currently a work in progress. This documentation will be updated when the code approaches a release. Please note this branch is very much a WIP, and there may be a risk of breaking changes occasionally.
 
+## Contributors
+
+- Johanne Burns Bergan
+- Sander Stenbakk Ekanger
+- Jacob Gullesen Hagen
+- Ingrid Helene Kvitnes
+- Noah Lund Syrdal
+- Siri Arnesen
+- Marius Bølset Gisleberg
+
+
 ## Starting the project for the first time
 ```bash
 docker compose -f docker-compose-dev.yml build

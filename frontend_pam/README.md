@@ -1,17 +1,3 @@
-# PAM
-
-PAM is a dashboard where you can have an overview over deployments in the field, with their associated audio files.
-
-## Contributors
-
-- Johanne Burns Bergan
-- Sander Stenbakk Ekanger
-- Jacob Gullesen Hagen
-- Ingrid Helene Kvitnes
-- Noah Lund Syrdal
-- Siri Arnesen
-- Marius Bølset Gisleberg
-
 ## Table of contents
 - [PAM](#pam)
   - [Contributors](#contributors)
