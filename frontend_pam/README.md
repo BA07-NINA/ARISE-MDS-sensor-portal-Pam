@@ -106,17 +106,17 @@ The project is structured to maintain a clear separation of concerns and to ensu
 - `src/`: Contains the main source code for the frontend.
   - `components/`: Houses reusable React components, each in its own directory.
   - `auth/`
-    - `AuthContext.d.ts`
-    - `AuthContext.jsx`
+    - `AuthContext.d.ts`: Declaration file
+    - `AuthContext.jsx`: Mainly used for user authentication
   - `routes/`
     - `deployments/`
       - `$siteName/`
-        - `-deploymentMapPage.tsx`
+        - `-deploymentMapPage.tsx`: Map view of the deployment
         - `-deploymentPage.tsx`: Landing page after clicking a deployment
-        - `-deviceDataFilesPage.tsx`
-        - `-deviceDetailPage.tsx`
-        - `-siteDetailPage.tsx`
-        - `$dataFieldId.tsx`
+        - `-deviceDataFilesPage.tsx`: Table view of all data files linked the the specifc deployment
+        - `-deviceDetailPage.tsx`: Information about the deployment device
+        - `-siteDetailPage.tsx`: Information about the deployment site
+        - `$dataFieldId.tsx`: Detail about a specifc data file
         - `index.tsx`
       - `-deploymentsPage.tsx`: Table view of all deployments
       - `index.tsx`: 
@@ -124,7 +124,6 @@ The project is structured to maintain a clear separation of concerns and to ensu
     - `login.tsx`Login page
     - `index.tsx`: Homepage
     - `map.tsx`: Map over all deployments
-  - `types.ts`
   - `index.css`: Define tailwind
   - `main.tsx`: Define router and query provider
 - `index.html`: The entry HTML file for the frontend.
