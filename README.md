@@ -67,13 +67,6 @@ docker compose -f docker-compose-dev.yml exec sensor_portal_django python manage
 docker compose -f docker-compose-dev.yml exec sensor_portal_django python manage.py createsuperuser
 ```
 
-
-
-## Testing
-```bash
-docker compose -f docker-compose-dev.yml exec sensor_portal_django pytest
-```
-
 ## Audio Data Management
 
 The sensor portal uses Google Cloud Storage (GCS) to store and manage audio files. For local development, we provide a fake GCS implementation that works without real GCS credentials.
@@ -263,3 +256,37 @@ If you need to create new endpoints to expose data:
    ```bash
    docker compose -f docker-compose-dev.yml restart sensor_portal_django
    ```
+
+
+
+### End-to-End (E2E) Testing
+
+E2E testing verifies that the full application works as intended in an integrated environment. These tests mimic real user journeys from start to finish, ensuring that all layers—frontend, backend, and database—interact correctly. In our project, the E2E suite covers:
+
+- **Authentication and Access**
+    - Log in with valid credentials
+    - Store the access token in `localStorage`
+    - Automatically refresh tokens to maintain the session
+- **Loading and Displaying Data**
+    - Fetch the deployments list from the API
+    - Render key fields (`site_name`, `deployment_ID`) in the table
+- **Navigation and Detail Views**
+    - Click into a specific deployment’s detail page
+    - View associated data files and their metadata (file name, format, quality-check status)
+- **User Interactions and API Calls**
+    - Click the “Check Quality” button for a data file
+    - Assert that the API returns status 200
+    - Verify that the UI updates to reflect the API response
+- **Robustness and State Handling**
+    - Reload pages (`cy.reload()`) to confirm the app preserves state correctly
+    - Check that data remains consistent after navigation and actions
+
+### Running the E2E Tests
+Before you begin, make sure the application is running as described earlier in this file. Then run: 
+
+```bash
+npm install
+npx cypress open
+```
+
+This will launch Cypress’s test runner, where you can select and execute the “DeploymentsPage” spec (or any other E2E suite) in your browser.

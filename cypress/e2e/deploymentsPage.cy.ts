@@ -22,7 +22,7 @@ describe('DeploymentsPage – full E2E with real login + refresh stub', () => {
 
       cy.visit('/', {
         onBeforeLoad(win) {
-          win.localStorage.setItem('authTokens', JSON.stringify(tokens))
+          win.sessionStorage.setItem('authTokens', JSON.stringify(tokens))
         }
       })
 
@@ -35,9 +35,9 @@ describe('DeploymentsPage – full E2E with real login + refresh stub', () => {
     cy.wait('@refreshReq')
 
     cy.window().then((win) => {
-      const authTokens = win.localStorage.getItem('authTokens');
+      const authTokens = win.sessionStorage.getItem('authTokens');
       if (!authTokens) {
-        throw new Error('authTokens not found in localStorage');
+        throw new Error('authTokens not found in sessionStorage');
       }
       const { access } = JSON.parse(authTokens);
 
@@ -76,7 +76,7 @@ describe('DeploymentsPage – full E2E with real login + refresh stub', () => {
           const fileId = url.split('/').pop()
 
           cy.window().then(win => {
-            const { access } = JSON.parse(win.localStorage.getItem('authTokens')!)
+            const { access } = JSON.parse(win.sessionStorage.getItem('authTokens')!)
             cy.request({
               method: 'GET',
               url: `/api/datafile/${fileId}/`,
