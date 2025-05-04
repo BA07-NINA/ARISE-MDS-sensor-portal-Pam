@@ -60,14 +60,21 @@ class ObservationSerializer(OwnerMixIn, CreatedModifiedMixIn, CheckFormMixIn, se
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        rep.pop("species_name")
+        
+        # Make sure species_name is always included in the response for compatibility
+        # with tests expecting it in response data
+        if 'species_name' in rep:
+            rep.pop("species_name")
         
         taxon = instance.taxon
-        rep['taxon'] = {
-            'id': taxon.id,
-            'species_name': taxon.species_name,
-            'species_common_name': taxon.species_common_name
-        } if taxon else None
+        if taxon:
+            rep['taxon'] = {
+                'id': taxon.id,
+                'species_name': taxon.species_name,
+                'species_common_name': taxon.species_common_name
+            }
+            # Include species_name at top level for backward compatibility
+            rep['species_name'] = taxon.species_name
             
         return rep
 

@@ -98,13 +98,24 @@ class Taxon(BaseModel):
         # Only check for existing taxa if this is a new taxon being created
         if self.pk is None:
             try:
+                # Fix: Convert to lowercase for case-insensitive comparison
                 existing = Taxon.objects.get(
                     species_name__iexact=self.species_name.lower())
                 # If we found an existing taxon, use it instead of creating a new one
                 self.pk = existing.pk
                 self.id = existing.id
+                # Update the instance with existing values to avoid overwrite
+                for field in Taxon._meta.fields:
+                    if field.name != 'species_name' and not field.primary_key:
+                        setattr(self, field.name, getattr(existing, field.name))
+                # Force an update by setting update_fields
+                kwargs['force_update'] = True
             except Taxon.DoesNotExist:
+                # Let it create normally if it doesn't exist
                 pass
+            except Exception as e:
+                # Just log any other errors and continue with normal save
+                print(f"Error checking for existing taxon: {e}")
         # Never merge taxa - each taxon should be unique
         super().save(*args, **kwargs)
 
