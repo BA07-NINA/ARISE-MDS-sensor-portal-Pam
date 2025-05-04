@@ -729,43 +729,39 @@ class DataFile(BaseModel):
         except Exception as e:
             print(e)
 
-    def clean(self):
-        # Validate that the recording date is within the deployment period
-        if self.recording_dt and self.deployment:
-            result, message = validators.data_file_in_deployment(
-                self.recording_dt, self.deployment
-            )
-            if not result:
-                raise ValidationError(message)
-        
-        super().clean()
-
     def save(self, *args, **kwargs):
         if self.file_type is None:
             self.file_type = self.deployment.device.type
         self.set_file_url()
         super().save(*args, **kwargs)
 
-<<<<<<< HEAD
-
-=======
     def clean(self):
-        
-        if self.deployment and self.recording_dt:
-            result, message = validators.data_file_in_deployment(
-                self.recording_dt, self.deployment)
-            if not result:
-                from django.core.exceptions import ValidationError
-                raise ValidationError(message)
         # Skip validation if either recording_dt or deployment is missing
         if self.recording_dt and self.deployment:
             # Direct validation with specific error messages
             deployment = self.deployment
-            if deployment.deployment_start and self.recording_dt < deployment.deployment_start:
+            recording_dt = self.recording_dt
+            deployment_start = deployment.deployment_start
+            deployment_end = deployment.deployment_end
+            
+            # Make sure both are timezone-aware for comparison
+            if recording_dt.tzinfo is None:
+                from django.utils import timezone
+                recording_dt = timezone.make_aware(recording_dt)
+                
+            if deployment_start and deployment_start.tzinfo is None:
+                from django.utils import timezone
+                deployment_start = timezone.make_aware(deployment_start)
+                
+            if deployment_end and deployment_end.tzinfo is None:
+                from django.utils import timezone
+                deployment_end = timezone.make_aware(deployment_end)
+                
+            if deployment_start and recording_dt < deployment_start:
                 from django.core.exceptions import ValidationError
                 raise ValidationError("Recording date cannot be before deployment start date")
             
-            if deployment.deployment_end and self.recording_dt > deployment.deployment_end:
+            if deployment_end and recording_dt > deployment_end:
                 from django.core.exceptions import ValidationError
                 raise ValidationError("Recording date cannot be after deployment end date")
             
@@ -778,9 +774,8 @@ class DataFile(BaseModel):
         
         # Call parent's clean method
         super(DataFile, self).clean()
-        super().clean()
-        
->>>>>>> af16479c27a873e47753b91c23311762682520c5
+
+
 @receiver(post_save, sender=DataFile)
 def post_save_file(sender, instance, created, **kwargs):
     instance.deployment.set_thumb_url()

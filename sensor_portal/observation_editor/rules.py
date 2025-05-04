@@ -25,20 +25,12 @@ class CanViewObservationDataFile(R):
             return final_query(accumulated_q)
 
 
-<<<<<<< HEAD
-# Define permission to add observations - allow everyone to add
-perms['observation_editor.add_observation'] = always_allow
-
-# Define permission to change observations - allow everyone to edit
-perms['observation_editor.change_observation'] = always_allow
-=======
 class CanAddObservation(R):
     def check(self, user, instance=None):
         # Check if superuser
         initial_bool = check_super(user)
         if initial_bool is not None:
             return initial_bool
->>>>>>> af16479c27a873e47753b91c23311762682520c5
 
         # Make sure the user has appropriate permissions to add observations to ALL
         # data files in the instance. If any file fails, they can't add observations.
