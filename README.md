@@ -1,8 +1,46 @@
 # ARISE-MDS Sensor Portal
- 
-This is a shareable version of the ARISE-MDS sensor portal. It is currently a work in progress. This documentation will be updated when the code approaches a release. Please note this branch is very much a WIP, and there may be a risk of breaking changes occasionally.
+
+This shareable version of the ARISE-MDS sensor portal builds on the foundation developed by Dr. Julian Evans. This branch is currently a work in progress.
+
+## Contributors
+
+- Johanne Burns Bergan
+- Sander Stenbakk Ekanger
+- Jacob Gullesen Hagen
+- Ingrid Helene Kvitnes
+- Noah Lund Syrdal
+- Siri Arnesen
+- Marius Bølset Gisleberg
+
+## Table of Contents
+
+- [ARISE-MDS Sensor Portal](#arise-mds-sensor-portal)
+  - [Contributors](#contributors)
+  - [Table of Contents](#table-of-contents)
+  - [Starting the project for the first time](#starting-the-project-for-the-first-time)
+    - [Init database \& super user](#init-database--super-user)
+    - [Run migrations again](#run-migrations-again)
+  - [Audio Data Management](#audio-data-management)
+    - [Directory Structure](#directory-structure)
+    - [Importing Audio Files with Fake GCS](#importing-audio-files-with-fake-gcs)
+    - [Resulting Storage Structure](#resulting-storage-structure)
+    - [Data Relationships](#data-relationships)
+    - [Accessing Audio Files](#accessing-audio-files)
+    - [Working with Audio Files](#working-with-audio-files)
+    - [File Format Support](#file-format-support)
+    - [Filename Parsing](#filename-parsing)
+  - [Data Flow from Backend to Frontend](#data-flow-from-backend-to-frontend)
+    - [API Endpoints](#api-endpoints)
+    - [Checking API Responses](#checking-api-responses)
+    - [Debugging Data Flow Issues](#debugging-data-flow-issues)
+    - [Creating Custom API Endpoints](#creating-custom-api-endpoints)
+  - [Testing](#testing)
+    - [Backend and Database Testing](#backend-and-database-testing)
+    - [End-to-End (E2E) Testing](#end-to-end-e2e-testing)
+  - [Additional Documentation](#additional-documentation)
 
 ## Starting the project for the first time
+
 ```bash
 docker compose -f docker-compose-dev.yml build
 ```
@@ -11,7 +49,7 @@ docker compose -f docker-compose-dev.yml build
 docker compose -f docker-compose-dev.yml up
 ```
 
-### Init database & super user:
+### Init database & super user
 
 ```bash
 docker compose -f docker-compose-dev.yml exec sensor_portal_django python manage.py migrate
@@ -58,20 +96,14 @@ CREATE EXTENSION postgis;
 \q
 ```
 
+### Run migrations again
 
-### then run migrations again
 ```bash
 docker compose -f docker-compose-dev.yml exec sensor_portal_django python manage.py migrate
 ```
+
 ```bash
 docker compose -f docker-compose-dev.yml exec sensor_portal_django python manage.py createsuperuser
-```
-
-
-
-## Testing
-```bash
-docker compose -f docker-compose-dev.yml exec sensor_portal_django pytest
 ```
 
 ## Audio Data Management
@@ -107,6 +139,7 @@ docker compose -f docker-compose-dev.yml exec sensor_portal_django python manage
 ```
 
 This will:
+
 - Create device-specific buckets in fake GCS
 - Copy audio files into these buckets
 - Create database records for devices, deployments, and files
@@ -140,11 +173,13 @@ Device (10000000d642707c)
 ### Accessing Audio Files
 
 1. **API (recommended)**:
+
    ```
    GET /api/deployments/{deployment_id}/files/
    ```
 
 2. **Command line**:
+
    ```bash
    # List files in a device bucket
    docker compose -f docker-compose-dev.yml exec sensor_portal_django \
@@ -167,6 +202,7 @@ docker compose -f docker-compose-dev.yml exec sensor_portal_django \
 ### File Format Support
 
 The system supports various audio formats:
+
 - MP3 (.mp3)
 - WAV (.wav)
 - M4A (.m4a)
@@ -174,11 +210,13 @@ The system supports various audio formats:
 ### Filename Parsing
 
 For best metadata extraction, audio files should follow this naming convention:
+
 ```
 bugg_RPiID-DEVICEID_YYYYMMDD_HHMMSS_CONFIG.wav
 ```
 
 The system will extract:
+
 - Device ID from the filename
 - Recording date and time
 - Configuration information (e.g., sample rate)
@@ -189,14 +227,10 @@ The ARISE-MDS sensor portal uses a Django REST Framework backend to serve data t
 
 ### API Endpoints
 
-The primary way data gets sent from the backend to the frontend is through RESTful API endpoints:
-
-```bash
-# List available API endpoints
-
-```
+The primary way data gets sent from the backend to the frontend is through API endpoints:
 
 Common endpoints include:
+
 - `/api/datafiles/` - Access audio and sensor data files
 - `/api/deployments/` - Access deployment information
 - `/api/devices/` - Access device information
@@ -208,15 +242,16 @@ Common endpoints include:
 To verify data is being sent correctly:
 
 1. Using the Django Admin Interface:
-   - Navigate to http://localhost:8080/admin/ 
+   - Navigate to <http://localhost:8080/admin/>
    - Log in with your superuser credentials
    - Browse to various model pages to confirm data exists
 
 2. Testing API endpoints directly:
-   - Visit http://localhost:8080/api/ in your browser
+   - Visit <http://localhost:8080/api/> in your browser
    - Use the browsable API to explore endpoints and verify data
 
 3. Using curl from command line:
+
    ```bash
    # Example to fetch all devices
    curl -H "Accept: application/json" -H "Content-Type: application/json" http://localhost:8000/api/devices/
@@ -227,11 +262,13 @@ To verify data is being sent correctly:
 If data isn't appearing in the frontend:
 
 1. Check Django logs for errors:
+
    ```bash
    docker compose -f docker-compose-dev.yml logs sensor_portal_django
    ```
 
 2. Verify the API is returning expected data:
+
    ```bash
    # Using httpie (if installed)
    http GET http://localhost:8000/api/devices/
@@ -240,6 +277,7 @@ If data isn't appearing in the frontend:
 3. Check for CORS issues in browser developer console (F12)
 
 4. Ensure frontend API calls include proper authentication if required:
+
    ```javascript
    // Example React fetch with authentication
    fetch('/api/devices/', {
@@ -260,6 +298,61 @@ If you need to create new endpoints to expose data:
 2. Add a viewset in `sensor_portal/views.py`
 3. Register the viewset in `sensor_portal/urls.py`
 4. Restart the Django container:
+
    ```bash
    docker compose -f docker-compose-dev.yml restart sensor_portal_django
    ```
+
+## Testing
+
+### Backend and Database Testing
+
+- **Data Model Tests**
+  - Verify that the backend can create and manage database models correctly
+  - Ensure corresponding API endpoints return expected responses
+- **Observations Tests**
+  - Validate creation of models
+  - Make sure the api endpoints related to the observations work appropriately
+
+**Running the backend tests**
+
+```bash
+docker compose -f docker-compose-dev.yml exec sensor_portal_django pytest
+```
+
+### End-to-End (E2E) Testing
+
+E2E testing verifies that the full application works as intended in an integrated environment. These tests mimic real user journeys from start to finish, ensuring that all layers—frontend, backend, and database—interact correctly. In our project, the E2E suite covers:
+
+- **Authentication and Access**
+  - Log in with valid credentials
+  - Store the access token in `localStorage`
+  - Automatically refresh tokens to maintain the session
+- **Loading and Displaying Data**
+  - Fetch the deployments list from the API
+  - Render key fields (`site_name`, `deployment_ID`) in the table
+- **Navigation and Detail Views**
+  - Click into a specific deployment’s detail page
+  - View associated data files and their metadata (file name, format, quality-check status)
+- **User Interactions and API Calls**
+  - Click the “Check Quality” button for a data file
+  - Assert that the API returns status 200
+  - Verify that the UI updates to reflect the API response
+- **Robustness and State Handling**
+  - Reload pages (`cy.reload()`) to confirm the app preserves state correctly
+  - Check that data remains consistent after navigation and actions
+
+**Running the E2E Tests**
+Before you begin, make sure the application is running as described earlier in this file. Then run:
+
+```bash
+npm install
+npx cypress open
+```
+
+This will launch Cypress’s test runner, where you can select and execute the “DeploymentsPage” spec.
+
+## Additional Documentation
+
+For more detailed information on the frontend implementation, see the README in the `frontend/` directory.  
+For deeper insights into the backend, see the README in the `sensor_portal/` directory.
