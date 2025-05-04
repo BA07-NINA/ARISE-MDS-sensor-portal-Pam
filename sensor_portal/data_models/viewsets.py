@@ -854,6 +854,47 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
         created_files = []
         errors = []
         
+        # Get the deployment first to provide deployment info in errors
+        deployment = None
+        if deployment_id:
+            try:
+                deployment = Deployment.objects.get(pk=deployment_id)
+            except Deployment.DoesNotExist:
+                return Response({
+                    "error": f"Deployment with ID {deployment_id} not found",
+                    "created_files": [],
+                    "errors": [{
+                        "file": "All files",
+                        "error": f"Deployment with ID {deployment_id} not found"
+                    }]
+                }, status=status.HTTP_404_NOT_FOUND)
+        elif site_name:
+            try:
+                deployment = Deployment.objects.get(site_name__iexact=site_name)
+            except Deployment.DoesNotExist:
+                return Response({
+                    "error": f"Deployment with site name {site_name} not found",
+                    "created_files": [],
+                    "errors": [{
+                        "file": "All files",
+                        "error": f"Deployment with site name {site_name} not found"
+                    }]
+                }, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({
+                "error": "Either deployment_id or site_name must be provided",
+                "created_files": [],
+                "errors": [{
+                    "file": "All files",
+                    "error": "Either deployment_id or site_name must be provided"
+                }]
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Provide deployment date information for reference
+        deployment_start_str = deployment.deployment_start.date().isoformat() if deployment.deployment_start else "No start date"
+        deployment_end_str = deployment.deployment_end.date().isoformat() if deployment.deployment_end else "Present"
+        deployment_info = f"{deployment.deployment_device_ID} ({deployment_start_str} to {deployment_end_str})"
+        
         for audio_file, file_obj in zip(audio_files, files):
             try:
                 print(f"Processing audio file: {audio_file}")  # Debug log
@@ -873,7 +914,7 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
                         print(f"Error parsing recording_dt: {e}")  # Debug log
                         errors.append({
                             "file": audio_file.get('file_name', 'Unknown file'),
-                            "error": f"Invalid recording_dt format: {str(e)}"
+                            "error": f"Invalid recording date format: {str(e)}"
                         })
                         continue
                 else:
@@ -882,37 +923,11 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
                     recording_dt = recording_dt.replace(hour=0, minute=0, second=0, microsecond=0)
                     print(f"No recording_dt provided, using current date: {recording_dt}")  # Debug log
                 
-                # Get the deployment
-                if deployment_id:
-                    try:
-                        deployment = Deployment.objects.get(pk=deployment_id)
-                    except Deployment.DoesNotExist:
-                        errors.append({
-                            "file": audio_file.get('file_name', 'Unknown file'),
-                            "error": f"Deployment with ID {deployment_id} not found"
-                        })
-                        continue
-                elif site_name:
-                    try:
-                        deployment = Deployment.objects.get(site_name__iexact=site_name)
-                    except Deployment.DoesNotExist:
-                        errors.append({
-                            "file": audio_file.get('file_name', 'Unknown file'),
-                            "error": f"Deployment with site name {site_name} not found"
-                        })
-                        continue
-                else:
-                    errors.append({
-                        "file": audio_file.get('file_name', 'Unknown file'),
-                        "error": "Either deployment_id or site_name must be provided"
-                    })
-                    continue
-                
                 # Verify recording date is within the deployment date range
                 if not deployment.check_dates([recording_dt])[0]:
                     errors.append({
                         "file": audio_file.get('file_name', 'Unknown file'),
-                        "error": f"Recording date {recording_dt.date()} not in deployment date range: {deployment.deployment_start.date()} to {deployment.deployment_end.date() if deployment.deployment_end else 'present'}"
+                        "error": f"Recording date {recording_dt.date().isoformat()} is outside the deployment date range: {deployment_start_str} to {deployment_end_str}"
                     })
                     continue
                 
@@ -967,7 +982,8 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
         
         return Response({
             "created_files": created_files,
-            "errors": errors
+            "errors": errors,
+            "deployment_info": deployment_info if deployment else None
         })
 
     def check_attachment(self, serializer):

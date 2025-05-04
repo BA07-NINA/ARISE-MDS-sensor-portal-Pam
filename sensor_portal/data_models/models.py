@@ -736,8 +736,10 @@ class DataFile(BaseModel):
         super().save(*args, **kwargs)
 
     def clean(self):
-        # Skip validation if either recording_dt or deployment is missing
-        if self.recording_dt and self.deployment:
+        """
+        Make sure that the recording date is in the deployment date.
+        """
+        if self.recording_dt is not None and self.deployment is not None:
             # Direct validation with specific error messages
             deployment = self.deployment
             recording_dt = self.recording_dt
@@ -757,13 +759,25 @@ class DataFile(BaseModel):
                 from django.utils import timezone
                 deployment_end = timezone.make_aware(deployment_end)
                 
+            # Format the date strings for error messages
+            recording_date_str = recording_dt.date().isoformat()
+            deployment_start_str = deployment_start.date().isoformat() if deployment_start else "No start date"
+            deployment_end_str = deployment_end.date().isoformat() if deployment_end else "Present"
+            deployment_range_str = f"{deployment_start_str} to {deployment_end_str}"
+            
             if deployment_start and recording_dt < deployment_start:
                 from django.core.exceptions import ValidationError
-                raise ValidationError("Recording date cannot be before deployment start date")
+                raise ValidationError(
+                    f"Recording date ({recording_date_str}) cannot be before deployment start date ({deployment_start_str}). "
+                    f"Valid range: {deployment_range_str}"
+                )
             
             if deployment_end and recording_dt > deployment_end:
                 from django.core.exceptions import ValidationError
-                raise ValidationError("Recording date cannot be after deployment end date")
+                raise ValidationError(
+                    f"Recording date ({recording_date_str}) cannot be after deployment end date ({deployment_end_str}). "
+                    f"Valid range: {deployment_range_str}"
+                )
             
             # Also call the validator function for consistency or additional validations
             result, message = validators.data_file_in_deployment(

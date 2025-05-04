@@ -29,21 +29,29 @@ def data_file_in_deployment(recording_dt, deployment):
     if deployment_end is not None and deployment_end.tzinfo is None:
         deployment_end = timezone.make_aware(deployment_end)
     
-    # Format the end date string for error message
-    if deployment.deployment_end is None:
-        deployment_end_str = ""
-    else:
-        deployment_end_str = f" - {str(deployment.deployment_end)}"
+    # Format date strings for user-friendly error messages
+    recording_date_str = recording_dt_check.date().isoformat() if recording_dt_check else "Unknown date"
+    deployment_start_str = deployment_start.date().isoformat() if deployment_start else "No start date"
+    deployment_end_str = deployment_end.date().isoformat() if deployment_end else "Present"
+    deployment_range_str = f"{deployment_start_str} to {deployment_end_str}"
     
     # Do the actual date validation
     if deployment_start and recording_dt_check < deployment_start:
-        error_message = {"recording_dt": f"recording_dt not in deployment {deployment.deployment_device_ID} date time range "
-                     f"{str(deployment.deployment_start)}{deployment_end_str}"}
+        error_message = {
+            "recording_dt": (
+                f"Recording date ({recording_date_str}) is before deployment start date ({deployment_start_str}). "
+                f"Valid range for {deployment.deployment_device_ID}: {deployment_range_str}"
+            )
+        }
         return False, error_message
         
     if deployment_end and recording_dt_check > deployment_end:
-        error_message = {"recording_dt": f"recording_dt not in deployment {deployment.deployment_device_ID} date time range "
-                     f"{str(deployment.deployment_start)}{deployment_end_str}"}
+        error_message = {
+            "recording_dt": (
+                f"Recording date ({recording_date_str}) is after deployment end date ({deployment_end_str}). "
+                f"Valid range for {deployment.deployment_device_ID}: {deployment_range_str}"
+            )
+        }
         return False, error_message
     
     return True, ""
