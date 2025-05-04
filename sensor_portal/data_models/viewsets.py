@@ -877,8 +877,10 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
                         })
                         continue
                 else:
-                    recording_dt = None
-                    print("No recording_dt provided")  # Debug log
+                    # Use the current date if no recording date provided
+                    recording_dt = djtimezone.now()
+                    recording_dt = recording_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                    print(f"No recording_dt provided, using current date: {recording_dt}")  # Debug log
                 
                 # Get the deployment
                 if deployment_id:
@@ -903,6 +905,14 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
                     errors.append({
                         "file": audio_file.get('file_name', 'Unknown file'),
                         "error": "Either deployment_id or site_name must be provided"
+                    })
+                    continue
+                
+                # Verify recording date is within the deployment date range
+                if not deployment.check_dates([recording_dt])[0]:
+                    errors.append({
+                        "file": audio_file.get('file_name', 'Unknown file'),
+                        "error": f"Recording date {recording_dt.date()} not in deployment date range: {deployment.deployment_start.date()} to {deployment.deployment_end.date() if deployment.deployment_end else 'present'}"
                     })
                     continue
                 
