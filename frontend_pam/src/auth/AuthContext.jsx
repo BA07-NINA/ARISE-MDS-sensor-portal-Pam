@@ -28,14 +28,13 @@ export const AuthProvider = ({ children }) => {
       ? jwtDecode(sessionStorage.getItem("authTokens"))
       : null
   );
-  console.log("User:", user);
+
   // Initialize authTokens state by parsing the tokens from localStorage if they exist
   const [authTokens, setAuthTokens] = useState(() =>
     sessionStorage.getItem("authTokens")
       ? JSON.parse(sessionStorage.getItem("authTokens"))
       : null
   );
-  console.log("AuthTokens:", authTokens);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -50,11 +49,8 @@ export const AuthProvider = ({ children }) => {
 
   const loginUserFunction = async (username, password) => {
     console.log("bar");
-    console.log("Inside loginUserFunction, trying:", username, password);
   
     try {
-       // Log the API endpoint for debugging purposes
-      console.log("API URL:", `/${import.meta.env.VITE_API_BASE_URL}/token/`);
       
       // Make a POST request to the token endpoint with the provided credentials
       const response = await fetch(`/${import.meta.env.VITE_API_BASE_URL}/token/`, {
@@ -62,10 +58,6 @@ export const AuthProvider = ({ children }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username, password: password}),
       });
-  
-      // Log response status and headers for debugging
-      console.log("Response status:", response.status);
-      console.log("Response headers:", response.headers);
   
       // If the response is not OK, log the error and alert the user
       if (!response.ok) {
@@ -77,10 +69,8 @@ export const AuthProvider = ({ children }) => {
   
        // Parse the JSON response to get the tokens
       let data = await response.json();
-      console.log("Received data:", data);
   
       sessionStorage.setItem("authTokens", JSON.stringify(data));
-      console.log("Saved tokens:", JSON.parse(sessionStorage.getItem("authTokens")));
   
       // Update authTokens and user state using the new tokens
       setAuthTokens(data);
@@ -104,7 +94,6 @@ export const AuthProvider = ({ children }) => {
   let loginUser = async (e) => {
     e.preventDefault();
     console.log("foo");
-    console.log("Trying to log in with:", e.target.username.value, e.target.password.value);
     doLogIn.mutate({
       username: e.target.username.value,
       password: e.target.password.value,

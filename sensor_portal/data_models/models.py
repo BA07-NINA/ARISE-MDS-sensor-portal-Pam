@@ -27,7 +27,6 @@ from sizefield.models import FileSizeField
 from timezone_field import TimeZoneField
 from utils.general import convert_unit
 from utils.models import BaseModel
-
 from . import validators
 from .general_functions import check_dt
 
@@ -166,6 +165,7 @@ class Device(BaseModel):
 
     username = models.CharField(
         max_length=100, unique=True, null=True, blank=True, default=None)
+    password = models.CharField(max_length=100,null=True,blank=True)
     
     input_storage = models.ForeignKey(
         DataStorageInput, null=True, blank=True, related_name="linked_devices", on_delete=models.SET_NULL)
@@ -746,7 +746,41 @@ class DataFile(BaseModel):
         self.set_file_url()
         super().save(*args, **kwargs)
 
+<<<<<<< HEAD
 
+=======
+    def clean(self):
+        
+        if self.deployment and self.recording_dt:
+            result, message = validators.data_file_in_deployment(
+                self.recording_dt, self.deployment)
+            if not result:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(message)
+        # Skip validation if either recording_dt or deployment is missing
+        if self.recording_dt and self.deployment:
+            # Direct validation with specific error messages
+            deployment = self.deployment
+            if deployment.deployment_start and self.recording_dt < deployment.deployment_start:
+                from django.core.exceptions import ValidationError
+                raise ValidationError("Recording date cannot be before deployment start date")
+            
+            if deployment.deployment_end and self.recording_dt > deployment.deployment_end:
+                from django.core.exceptions import ValidationError
+                raise ValidationError("Recording date cannot be after deployment end date")
+            
+            # Also call the validator function for consistency or additional validations
+            result, message = validators.data_file_in_deployment(
+                self.recording_dt, self.deployment)
+            if not result:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(message)
+        
+        # Call parent's clean method
+        super(DataFile, self).clean()
+        super().clean()
+        
+>>>>>>> af16479c27a873e47753b91c23311762682520c5
 @receiver(post_save, sender=DataFile)
 def post_save_file(sender, instance, created, **kwargs):
     instance.deployment.set_thumb_url()

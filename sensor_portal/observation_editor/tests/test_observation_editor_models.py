@@ -48,19 +48,56 @@ def test_custom_taxon():
     assert new_taxon.taxon_source == 0
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_observation_create():
     """
     Test: Are observation labels and defaults generated from datafiles correctly.
     """
-    new_taxon = TaxonFactory(species_name="homo sapiens")
-    new_data_file = DataFileFactory.create()
-    new_observation = ObservationFactory(taxon=new_taxon,
-                                         data_files=[new_data_file]
-                                         )
-    # assert label
-    assert "sapiens" in new_observation.label
-
-    assert new_observation.obs_dt == new_data_file.recording_dt
-
-    new_data_file.delete()
+    new_taxon = None
+    new_data_file = None
+    new_observation = None
+    
+    try:
+        # Create test objects
+        new_taxon = TaxonFactory(species_name="homo sapiens")
+        new_data_file = DataFileFactory.create()
+        
+        # Create the observation
+        new_observation = ObservationFactory(
+            taxon=new_taxon,
+            data_files=[new_data_file]
+        )
+        
+        # Run assertions
+        assert "sapiens" in new_observation.label
+        assert new_observation.obs_dt == new_data_file.recording_dt
+        
+    finally:
+        # Careful cleanup in reverse order of creation
+        if new_observation:
+            try:
+                # Clear related objects first to avoid constraint violations
+                if hasattr(new_observation, 'data_files'):
+                    new_observation.data_files.clear()
+                new_observation.delete()
+            except Exception as e:
+                print(f"Error cleaning up observation: {e}")
+        
+        if new_data_file:
+            try:
+                # If the file object exists on disk, remove it first
+                if hasattr(new_data_file, 'full_path') and os.path.exists(new_data_file.full_path()):
+                    try:
+                        os.remove(new_data_file.full_path())
+                    except:
+                        pass
+                # Then delete the database record
+                new_data_file.delete()
+            except Exception as e:
+                print(f"Error cleaning up data file: {e}")
+        
+        if new_taxon:
+            try:
+                new_taxon.delete()
+            except Exception as e:
+                print(f"Error cleaning up taxon: {e}")

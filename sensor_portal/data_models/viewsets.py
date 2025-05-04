@@ -1,4 +1,6 @@
 import os
+import json
+import datetime
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
@@ -507,7 +509,14 @@ class DeviceViewSet(AddOwnerViewSetMixIn, OptionalPaginationViewSetMixIn):
         if not perms['data_models.view_datafile'].filter(user, DataFile.objects.filter(pk=datafile_id)).first():
             raise PermissionDenied("You don't have permission to download this datafile")
 
-        file_path = datafile.full_path()
+        # Construct the full path for the file
+        file_name = datafile.file_name if datafile.file_name.endswith(datafile.file_format) else f"{datafile.file_name}{datafile.file_format}"
+        file_path = os.path.join(
+            '/usr/src/proj_tabmon_NINA',
+            f'bugg_RPiID-{device.device_ID}',
+            'conf_20240314_TABMON',
+            file_name
+        )
         
         if not os.path.exists(file_path):
             return Response({"error": f"File not found at {file_path}"}, status=status.HTTP_404_NOT_FOUND)
@@ -517,7 +526,7 @@ class DeviceViewSet(AddOwnerViewSetMixIn, OptionalPaginationViewSetMixIn):
                 file_content = f.read()
                 mime_type = 'audio/mpeg' if datafile.file_format.lower().replace('.', '') == 'mp3' else f"audio/{datafile.file_format.lower().replace('.', '')}"
                 response = HttpResponse(file_content, content_type=mime_type)
-                response['Content-Disposition'] = f'inline; filename="{datafile.file_name}{datafile.file_format}"'
+                response['Content-Disposition'] = f'inline; filename="{file_name}"'
                 response['Content-Length'] = len(file_content)
                 return response
         except IOError as e:
@@ -661,6 +670,7 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
 
     queryset = DataFile.objects.all().distinct()
     filterset_class = DataFileFilter
+    serializer_class = DataFileSerializer
     search_fields = ['file_name',
                      'deployment__deployment_device_ID',
                      'deployment__device__name',
@@ -668,7 +678,16 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
                      '=tag',
                      'config',
                      'sample_rate']
-    
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        site_name = self.request.query_params.get('deployment__site_name')
+        if site_name:
+            deployment = Deployment.objects.filter(site_name__iexact=site_name).first()
+            if deployment:
+                queryset = queryset.filter(deployment=deployment)
+        return queryset
+
     @action(detail=False, methods=['get'])
     def date_range(self, request):
         """
@@ -705,8 +724,14 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
         if not datafile.path:
             return Response({"error": "File path not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Construct full path by joining the base directory with local_path
-        file_path = os.path.join(datafile.path, datafile.local_path, f"{datafile.file_name}{datafile.file_format}")
+        # Construct the full path for the file
+        file_name = datafile.file_name if datafile.file_name.endswith(datafile.file_format) else f"{datafile.file_name}{datafile.file_format}"
+        file_path = os.path.join(
+            '/usr/src/proj_tabmon_NINA',
+            f'bugg_RPiID-{datafile.deployment.device.device_ID}',
+            'conf_20240314_TABMON',
+            file_name
+        )
         
         if not os.path.exists(file_path):
             return Response({"error": f"File not found at {file_path}"}, status=status.HTTP_404_NOT_FOUND)
@@ -716,7 +741,7 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
                 file_content = f.read()
                 mime_type = 'audio/mpeg' if datafile.file_format.lower().replace('.', '') == 'mp3' else f"audio/{datafile.file_format.lower().replace('.', '')}"
                 response = HttpResponse(file_content, content_type=mime_type)
-                response['Content-Disposition'] = f'inline; filename="{datafile.file_name}{datafile.file_format}"'
+                response['Content-Disposition'] = f'inline; filename="{file_name}"'
                 response['Content-Length'] = len(file_content)
                 return response
         except IOError as e:
@@ -759,7 +784,7 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
         serializer = self.get_serializer(result_queryset, many=True)
         return Response(serializer.data)
         
-        
+
     @action(detail=False, methods=['get'])
     def test(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -804,65 +829,146 @@ class DataFileViewSet(CheckAttachmentViewSetMixIn, OptionalPaginationViewSetMixI
         
     @action(detail=False, methods=['post'])
     def register_audio_files(self, request):
-        """
-        Register audio files for a device or deployment
-        """
-        user = request.user
-        
-        # Get deployment or device
+        # Get the deployment ID or site name from the request
         deployment_id = request.data.get('deployment_id')
-        device_id = request.data.get('device_id')
+        site_name = request.data.get('site_name')
+        
+        # Get the audio files data
+        audio_files_str = request.data.get('audioFiles')
+        files = request.FILES.getlist('files')
+        
+        if not audio_files_str:
+            return Response({"error": "No audio files provided"}, 
+                        status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            if deployment_id:
-                deployment = Deployment.objects.get(pk=deployment_id)
-                if not user.has_perm('data_models.change_deployment', deployment):
-                    raise PermissionDenied("You don't have permission to add files to this deployment")
-            elif device_id:
-                device = Device.objects.get(pk=device_id)
-                if not user.has_perm('data_models.change_device', device):
-                    raise PermissionDenied("You don't have permission to add files to this device")
-                # Get active deployment for device
-                deployment = device.deployments.filter(is_active=True).first()
-                if not deployment:
-                    return Response({"error": "No active deployment found for this device"}, 
-                                    status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response({"error": "Must provide either deployment_id or device_id"}, 
-                                status=status.HTTP_400_BAD_REQUEST)
-        except (Deployment.DoesNotExist, Device.DoesNotExist):
-            return Response({"error": "Invalid deployment or device ID"}, 
-                            status=status.HTTP_404_NOT_FOUND)
-                
-        # Get audio files from request
-        audio_files = request.data.get('audioFiles', [])
-        if not audio_files:
-            return Response({"error": "No audio files provided"}, 
-                            status=status.HTTP_400_BAD_REQUEST)
+            audio_files = json.loads(audio_files_str)
+        except json.JSONDecodeError:
+            return Response({"error": "Invalid audio files data format"}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get or create Audio DataType
+        audio_type, _ = DataType.objects.get_or_create(name='Audio')
         
         # Process each audio file
         created_files = []
-        for audio_file in audio_files:
-            file_data = {
-                'deployment': deployment.id,
-                'file_name': audio_file.get('id'),
-                'config': audio_file.get('config'),
-                'sample_rate': audio_file.get('samplerate'),
-                'file_length': audio_file.get('fileLength'),
-                'file_size': audio_file.get('fileSize'),
-                'file_format': '.wav'  # Default format - adjust as needed
-            }
-            
-            serializer = DataFileSerializer(data=file_data)
-            if serializer.is_valid():
-                serializer.save()
-                created_files.append(serializer.data)
-            else:
-                # Return errors for this file
-                return Response({"error": f"Invalid file data: {serializer.errors}"}, 
-                                status=status.HTTP_400_BAD_REQUEST)
+        errors = []
         
-        return Response({"created_files": created_files}, status=status.HTTP_201_CREATED)
+        for audio_file, file_obj in zip(audio_files, files):
+            try:
+                print(f"Processing audio file: {audio_file}")  # Debug log
+                
+                # Parse the recording_dt from ISO format
+                recording_dt_str = audio_file.get('recording_dt')
+                print(f"Recording dt string: {recording_dt_str}")  # Debug log
+                
+                if recording_dt_str:
+                    try:
+                        # Parse the date string in YYYY-MM-DD format
+                        recording_dt = datetime.datetime.strptime(recording_dt_str, '%Y-%m-%d')
+                        # Make it timezone-aware using the server's timezone
+                        recording_dt = djtimezone.make_aware(recording_dt)
+                        print(f"Parsed recording_dt: {recording_dt}")  # Debug log
+                    except (ValueError, AttributeError) as e:
+                        print(f"Error parsing recording_dt: {e}")  # Debug log
+                        errors.append({
+                            "file": audio_file.get('file_name', 'Unknown file'),
+                            "error": f"Invalid recording_dt format: {str(e)}"
+                        })
+                        continue
+                else:
+                    # Use the current date if no recording date provided
+                    recording_dt = djtimezone.now()
+                    recording_dt = recording_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                    print(f"No recording_dt provided, using current date: {recording_dt}")  # Debug log
+                
+                # Get the deployment
+                if deployment_id:
+                    try:
+                        deployment = Deployment.objects.get(pk=deployment_id)
+                    except Deployment.DoesNotExist:
+                        errors.append({
+                            "file": audio_file.get('file_name', 'Unknown file'),
+                            "error": f"Deployment with ID {deployment_id} not found"
+                        })
+                        continue
+                elif site_name:
+                    try:
+                        deployment = Deployment.objects.get(site_name__iexact=site_name)
+                    except Deployment.DoesNotExist:
+                        errors.append({
+                            "file": audio_file.get('file_name', 'Unknown file'),
+                            "error": f"Deployment with site name {site_name} not found"
+                        })
+                        continue
+                else:
+                    errors.append({
+                        "file": audio_file.get('file_name', 'Unknown file'),
+                        "error": "Either deployment_id or site_name must be provided"
+                    })
+                    continue
+                
+                # Verify recording date is within the deployment date range
+                if not deployment.check_dates([recording_dt])[0]:
+                    errors.append({
+                        "file": audio_file.get('file_name', 'Unknown file'),
+                        "error": f"Recording date {recording_dt.date()} not in deployment date range: {deployment.deployment_start.date()} to {deployment.deployment_end.date() if deployment.deployment_end else 'present'}"
+                    })
+                    continue
+                
+                # Create the file data dictionary
+                file_data = {
+                    'deployment': deployment,
+                    'file_type': audio_type,
+                    'file_name': audio_file.get('file_name'),
+                    'file_size': audio_file.get('fileSize'),
+                    'recording_dt': recording_dt,
+                    'path': '/usr/src/proj_tabmon_NINA',
+                    'local_path': f'bugg_RPiID-{deployment.device.device_ID}/conf_20240314_TABMON',
+                    'file_format': audio_file.get('file_format'),
+                    'upload_dt': djtimezone.now()
+                }
+                
+                # Construct the full path for the file
+                file_name = file_data['file_name'] if file_data['file_name'].endswith(file_data['file_format']) else f"{file_data['file_name']}{file_data['file_format']}"
+                file_path = os.path.join(
+                    '/usr/src/proj_tabmon_NINA',
+                    f'bugg_RPiID-{deployment.device.device_ID}',
+                    'conf_20240314_TABMON',
+                    file_name
+                )
+                
+                # Create directory if it doesn't exist
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                
+                # Check if file already exists
+                if os.path.exists(file_path):
+                    errors.append({
+                        'file': file_data['file_name'],
+                        'error': f'File {file_data["file_name"]} already exists'
+                    })
+                    continue
+                
+                # Save the file
+                with open(file_path, 'wb+') as destination:
+                    for chunk in file_obj.chunks():
+                        destination.write(chunk)
+                
+                # Create the DataFile instance
+                data_file = DataFile.objects.create(**file_data)
+                created_files.append(data_file.file_name)
+                
+            except Exception as e:
+                print(f"Error creating file: {str(e)}")  # Debug log
+                errors.append({
+                    "file": audio_file.get('file_name', 'Unknown file'),
+                    "error": f"Error creating file: {str(e)}"
+                })
+        
+        return Response({
+            "created_files": created_files,
+            "errors": errors
+        })
 
     def check_attachment(self, serializer):
         deployment_object = serializer.validated_data.get(
