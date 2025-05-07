@@ -49,6 +49,14 @@ class DeviceFactory(factory.django.DjangoModelFactory):
     model = factory.SubFactory(DeviceModelFactory)
     type = None
 
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        """Override the default _create to call clean() before saving"""
+        obj = model_class(*args, **kwargs)
+        obj.clean()  # Run validation
+        obj.save()
+        return obj
+
 
 class ProjectFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -66,22 +74,23 @@ class DeploymentFactory(factory.django.DjangoModelFactory):
 
     deployment_ID = factory.Faker('word')
     device_type = None
-    device_n = factory.Faker('random_int', min=0, max=100)
+    device_n = factory.Sequence(lambda n: n + 1)
 
-    deployment_start = factory.Faker('date_time_between_dates',
-                                     datetime_start=datetime(
-                                         2020, 1, 1, 0, 0, 0),
-                                     tzinfo=djtimezone.utc)
+    @factory.lazy_attribute
+    def deployment_start(self):
+        # Get the latest deployment end date for this device
+        if self.device and self.device.deployments.exists():
+            latest_deployment = self.device.deployments.order_by('-deployment_end').first()
+            if latest_deployment and latest_deployment.deployment_end:
+                # Start this deployment after the last one ended
+                return latest_deployment.deployment_end + timedelta(days=1)
+        # If no previous deployments or they had no end date, start from a base date
+        return datetime(2020, 1, 1, 0, 0, 0, tzinfo=djtimezone.utc)
 
-    deployment_end = factory.Maybe(
-        factory.Faker('pybool'),
-
-        factory.Faker('date_time_between_dates',
-                      datetime_start=factory.SelfAttribute(
-                          "..deployment_start"),
-                      tzinfo=djtimezone.utc
-                      )
-    )
+    @factory.lazy_attribute
+    def deployment_end(self):
+        # End the deployment 30 days after it starts
+        return self.deployment_start + timedelta(days=30)
 
     device = factory.SubFactory(DeviceFactory)
     site = factory.SubFactory(SiteFactory)

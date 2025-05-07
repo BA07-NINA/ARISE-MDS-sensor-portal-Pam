@@ -124,7 +124,7 @@ const DeploymentMap = ({ deployments }: Props) => {
 										params={{ siteName: deploymentData.siteName }}
 										className="text-blue-500 hover:underline mt-2 text-sm"
 									>
-										View Site: {deploymentData.siteName}
+										View Site: {deploymentData.siteName || 'Unknown'}
 									</Link>
 									<div className="mt-2 text-sm">
 										Last Upload: {deploymentData.lastUpload
@@ -132,7 +132,7 @@ const DeploymentMap = ({ deployments }: Props) => {
 											: 'Never'}
 									</div>
 									<div className="mt-2 text-sm">
-										Country: {deploymentData.country}
+										Country: {deploymentData.country || 'Unknown'}
 									</div>
 								</Popup>
 							</CompMarker>

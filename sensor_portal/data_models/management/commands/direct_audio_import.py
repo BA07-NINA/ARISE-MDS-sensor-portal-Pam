@@ -556,8 +556,8 @@ class Command(BaseCommand):
                             deployment_config.get('Protocol Checklist'),
                             deployment_config.get('Score'),
                             deployment_config.get('Adresse e-mail'),
-                            deployment_config.get('Country'),
-                            deployment_config.get('Site')
+                            deployment_config.get('Country') or 'Norway',  # Default to Norway if missing
+                            deployment_config.get('Site') or device_id  # Default to device_id if missing
                         ])
                         deployment_id_pk = device_cursor.fetchone()[0]
                         

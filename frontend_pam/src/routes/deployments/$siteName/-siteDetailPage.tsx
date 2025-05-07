@@ -124,10 +124,10 @@ export default function SiteDetailPage() {
             <strong>Folder Size:</strong> {bytesToMegabytes(deployment.folderSize)}
           </p>
           <p>
-            <strong>Country:</strong> {deployment.country}
+            <strong>Country:</strong> {deployment.country || 'Unknown'}
           </p>
           <p>
-            <strong>Site Name:</strong> {deployment.siteName}
+            <strong>Site Name:</strong> {deployment.siteName || 'Unknown'}
           </p>
           <p>
             <strong>Latitude:</strong> {deployment.latitude}

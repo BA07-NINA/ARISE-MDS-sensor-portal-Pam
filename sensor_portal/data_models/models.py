@@ -187,17 +187,20 @@ class Device(BaseModel):
     def get_folder_size(self, unit="MB"):
         """
         Calculate the total size of all DataFile objects associated with this device.
-        Filstørrelse antas å være lagret i MB som standard.
-        Du kan spesifisere en annen enhet ved å sende 'KB' eller 'GB'.
+        File size is stored in bytes by default.
+        You can specify a different unit by passing 'KB', 'MB', or 'GB'.
         """
         agg = DataFile.objects.filter(deployment__device=self).aggregate(total_size=Sum('file_size'))
         total_size = agg['total_size'] or 0
 
+        # Convert from bytes to requested unit
         if unit.upper() == "KB":
-            return total_size * 1024
-        elif unit.upper() == "GB":
             return total_size / 1024
-        return total_size
+        elif unit.upper() == "MB":
+            return total_size / (1024 * 1024)
+        elif unit.upper() == "GB":
+            return total_size / (1024 * 1024 * 1024)
+        return total_size  # Return in bytes if no unit specified
 
     def get_last_upload(self):
         """Get the datetime of the most recent file upload for this device"""
@@ -214,10 +217,20 @@ class Device(BaseModel):
     def clean(self):
         result, message = validators.device_check_type(
             self.type, self.model)
-        print(result, message)
         if not result:
             raise ValidationError(message)
-        super(Device, self).clean()
+
+        # Validate SD card size
+        if self.sd_card_size is not None and self.sd_card_size < 0:
+            raise ValidationError({'sd_card_size': 'SD card size cannot be negative'})
+
+        # Check for duplicate device_ID
+        if self.device_ID:
+            existing_device = Device.objects.filter(device_ID=self.device_ID).exclude(pk=self.pk).first()
+            if existing_device:
+                raise ValidationError({'device_ID': 'A device with this ID already exists.'})
+
+        super().clean()
 
     def deployment_from_date(self, dt):
 
@@ -377,11 +390,11 @@ class Deployment(BaseModel):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, related_name="owned_deployments",
                               on_delete=models.SET_NULL, null=True)
     managers = models.ManyToManyField(
-        settings.AUTH_USER_MODEL, blank=True, related_name="managed_deployments", null=True)
+        settings.AUTH_USER_MODEL, blank=True, related_name="managed_deployments")
     viewers = models.ManyToManyField(
-        settings.AUTH_USER_MODEL, blank=True, related_name="viewable_deployments", null=True)
+        settings.AUTH_USER_MODEL, blank=True, related_name="viewable_deployments")
     annotators = models.ManyToManyField(
-        settings.AUTH_USER_MODEL, blank=True, related_name="annotatable_deployments", null=True)
+        settings.AUTH_USER_MODEL, blank=True, related_name="annotatable_deployments")
 
     combo_project = models.CharField(
         max_length=100, blank=True, null=True, editable=False)
@@ -412,22 +425,32 @@ class Deployment(BaseModel):
             )
             if not result:
                 raise ValidationError(message)
+
+        # Validate coordinates
+        if self.latitude is not None:
+            if not (-90 <= float(self.latitude) <= 90):
+                raise ValidationError({'latitude': 'Latitude must be between -90 and 90 degrees'})
         
-        super(Deployment, self).clean()
+        if self.longitude is not None:
+            if not (-180 <= float(self.longitude) <= 180):
+                raise ValidationError({'longitude': 'Longitude must be between -180 and 180 degrees'})
+        
+        super().clean()
 
     def save(self, *args, **kwargs):
-
         if self.device is not None and self.device.type is not None:
+            self.device_type = self.device.type
             device_type_name = self.device.type.name
         else:
-            device_type_name = "NoDevice"
+            device_type_name = "unknown"
 
-        self.deployment_device_ID = f"{self.deployment_ID}_{device_type_name}_{self.device_n}"
+        # Use device.device_ID instead of deployment_ID for the deployment_device_ID
+        if self.device is not None:
+            self.deployment_device_ID = f"{self.device.device_ID}_{device_type_name}_{self.device_n}"
+        else:
+            self.deployment_device_ID = f"{self.deployment_ID}_{device_type_name}_{self.device_n}"
 
         self.is_active = self.check_active()
-
-        if self.device is not None and self.device_type is None:
-            self.device_type = self.device.type
 
         if self.longitude and self.latitude:
             self.point = Point(
@@ -465,15 +488,21 @@ class Deployment(BaseModel):
         return False
 
     def check_dates(self, dt_list):
-
         result_list = []
 
         for dt in dt_list:
-            # if no TZ, localise to the device's timezone
-            dt = check_dt(dt, self.time_zone)
-            # print(dt)
-            result_list.append((dt >= self.deployment_start) and (
-                (self.deployment_end is None) or (dt <= self.deployment_end)))
+            # if no TZ, localize to the deployment's timezone
+            if dt.tzinfo is None:
+                dt = self.time_zone.localize(dt)
+            
+            # Convert deployment dates to the same timezone as dt
+            start = self.deployment_start.astimezone(dt.tzinfo)
+            end = self.deployment_end.astimezone(dt.tzinfo) if self.deployment_end else None
+            
+            # Check if dt is within the deployment period
+            result_list.append(
+                (dt >= start) and (end is None or dt <= end)
+            )
 
         return result_list
 
@@ -707,24 +736,48 @@ class DataFile(BaseModel):
         super().save(*args, **kwargs)
 
     def clean(self):
-        
-        if self.deployment and self.recording_dt:
-            result, message = validators.data_file_in_deployment(
-                self.recording_dt, self.deployment)
-            if not result:
-                from django.core.exceptions import ValidationError
-                raise ValidationError(message)
-        # Skip validation if either recording_dt or deployment is missing
-        if self.recording_dt and self.deployment:
+        """
+        Make sure that the recording date is in the deployment date.
+        """
+        if self.recording_dt is not None and self.deployment is not None:
             # Direct validation with specific error messages
             deployment = self.deployment
-            if deployment.deployment_start and self.recording_dt < deployment.deployment_start:
-                from django.core.exceptions import ValidationError
-                raise ValidationError("Recording date cannot be before deployment start date")
+            recording_dt = self.recording_dt
+            deployment_start = deployment.deployment_start
+            deployment_end = deployment.deployment_end
             
-            if deployment.deployment_end and self.recording_dt > deployment.deployment_end:
+            # Make sure both are timezone-aware for comparison
+            if recording_dt.tzinfo is None:
+                from django.utils import timezone
+                recording_dt = timezone.make_aware(recording_dt)
+                
+            if deployment_start and deployment_start.tzinfo is None:
+                from django.utils import timezone
+                deployment_start = timezone.make_aware(deployment_start)
+                
+            if deployment_end and deployment_end.tzinfo is None:
+                from django.utils import timezone
+                deployment_end = timezone.make_aware(deployment_end)
+                
+            # Format the date strings for error messages
+            recording_date_str = recording_dt.date().isoformat()
+            deployment_start_str = deployment_start.date().isoformat() if deployment_start else "No start date"
+            deployment_end_str = deployment_end.date().isoformat() if deployment_end else "Present"
+            deployment_range_str = f"{deployment_start_str} to {deployment_end_str}"
+            
+            if deployment_start and recording_dt < deployment_start:
                 from django.core.exceptions import ValidationError
-                raise ValidationError("Recording date cannot be after deployment end date")
+                raise ValidationError(
+                    f"Recording date ({recording_date_str}) cannot be before deployment start date ({deployment_start_str}). "
+                    f"Valid range: {deployment_range_str}"
+                )
+            
+            if deployment_end and recording_dt > deployment_end:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(
+                    f"Recording date ({recording_date_str}) cannot be after deployment end date ({deployment_end_str}). "
+                    f"Valid range: {deployment_range_str}"
+                )
             
             # Also call the validator function for consistency or additional validations
             result, message = validators.data_file_in_deployment(
@@ -735,8 +788,8 @@ class DataFile(BaseModel):
         
         # Call parent's clean method
         super(DataFile, self).clean()
-        super().clean()
-        
+
+
 @receiver(post_save, sender=DataFile)
 def post_save_file(sender, instance, created, **kwargs):
     instance.deployment.set_thumb_url()

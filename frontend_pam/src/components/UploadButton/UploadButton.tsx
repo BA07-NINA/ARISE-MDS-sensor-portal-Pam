@@ -9,6 +9,14 @@ interface FileWithId {
   recordingDate: Date | null;
 }
 
+interface UploadResult {
+  created_files: string[];
+  errors: Array<{
+    file: string;
+    error: string;
+  }>;
+}
+
 export default function UploadButton() {
   const { siteName } = Route.useParams();
   const queryClient = useQueryClient();
@@ -16,8 +24,21 @@ export default function UploadButton() {
   const [currentFileIndex, setCurrentFileIndex] = useState<number>(0);
   const [isDateDialogOpen, setIsDateDialogOpen] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [showResult, setShowResult] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
+
+  // Auto-hide success message after 5 seconds
+  useEffect(() => {
+    if (showResult && !uploadResult?.errors.length) {
+      const timer = setTimeout(() => {
+        setShowResult(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showResult, uploadResult]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -28,6 +49,8 @@ export default function UploadButton() {
       setFiles(newFiles);
       setCurrentFileIndex(0);
       setError(null);
+      setShowResult(false);
+      setUploadResult(null);
       setIsDateDialogOpen(true);
     }
   };
@@ -80,6 +103,10 @@ export default function UploadButton() {
       setError('No site name found in URL');
       return;
     }
+    
+    setIsLoading(true);
+    setError(null);
+    setShowResult(false);
   
     const formData = new FormData();
     const audioFiles = uploadFiles.map(fileWithId => ({
@@ -108,7 +135,11 @@ export default function UploadButton() {
         body: formData,
       });
   
+      const data = await response.json();
+      
       if (response.ok) {
+        setUploadResult(data);
+        setShowResult(true);
         setFiles([]);
         setCurrentFileIndex(0);
         if (fileInputRef.current) {
@@ -116,19 +147,23 @@ export default function UploadButton() {
         }
         await queryClient.invalidateQueries({ queryKey: ['datafiles', siteName] });
       } else {
-        const errorData = await response.json();
-        setError(errorData.detail || 'Upload failed');
+        setError(data.detail || 'Upload failed');
       }
     } catch (error) {
       setError('Error uploading files');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-4">
-        <Button onClick={() => fileInputRef.current?.click()}>
-          Upload Files
+        <Button 
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Uploading...' : 'Upload Files'}
         </Button>
         <input
           type="file"
@@ -141,13 +176,44 @@ export default function UploadButton() {
       </div>
 
       {error && (
-        <div className="text-red-500">{error}</div>
+        <div className="text-red-500 p-3 bg-red-50 border border-red-200 rounded-md">
+          {error}
+        </div>
+      )}
+
+      {showResult && uploadResult && (
+        <div className={`p-4 rounded-md ${uploadResult.errors.length ? 'bg-yellow-50 border border-yellow-300' : 'bg-green-50 border border-green-300'}`}>
+          {uploadResult.created_files.length > 0 && (
+            <div className="mb-2 text-green-700">
+              <p className="font-medium">Successfully uploaded {uploadResult.created_files.length} files:</p>
+              <ul className="list-disc pl-5 mt-1 text-sm">
+                {uploadResult.created_files.map((file, index) => (
+                  <li key={index}>{file}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {uploadResult.errors.length > 0 && (
+            <div className="text-red-700">
+              <p className="font-medium">Failed to upload {uploadResult.errors.length} files:</p>
+              <ul className="list-disc pl-5 mt-1 text-sm">
+                {uploadResult.errors.map((error, index) => (
+                  <li key={index}>
+                    {error.file}: {error.error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
 
       {isDateDialogOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
             <h2 className="text-lg font-semibold mb-4">Select Recording Date for {files[currentFileIndex]?.file.name}</h2>
+            <p className="text-sm text-gray-500 mb-2">File {currentFileIndex + 1} of {files.length}</p>
             <Input
               type="datetime-local"
               value={selectedDate}
